@@ -1,0 +1,338 @@
+/* ---------- status bar ---------- */
+#statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(to bottom, rgb(var(--accent) / 0.04), transparent);
+}
+
+#gear {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+#gear button {
+  min-width: 34px;
+  min-height: 34px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+#gear button[aria-pressed="true"] {
+  color: #000;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  box-shadow: var(--glow-soft);
+}
+
+#battery {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text);
+}
+
+#battery-pct {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+#status-center {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  letter-spacing: 0.14em;
+}
+
+#clock {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- left dock ---------- */
+#dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+}
+
+.dock-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.dock-btn:hover,
+.dock-btn:active {
+  color: var(--text);
+}
+
+#dock-car {
+  color: var(--text);
+  filter: drop-shadow(0 0 4px rgb(var(--accent) / 0.5));
+}
+
+.dock-dots {
+  flex: 1;
+  width: 18px;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+  background-size: 6px 6px;
+  opacity: 0.7;
+}
+
+/* ---------- media strip ---------- */
+#media-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  border-top: 1px solid var(--line-soft);
+}
+
+#climate-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 120px;
+}
+
+#climate-pill button,
+#volume button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+#climate-pill button:hover,
+#volume button:hover {
+  color: var(--text);
+}
+
+#fan-level {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  min-width: 44px;
+  text-align: center;
+  text-shadow: var(--glow);
+}
+
+#mediabar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+#track-info {
+  min-width: 150px;
+}
+
+#track-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#track-artist {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#track-progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+#track-time-cur,
+#track-time-end {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.progress-line {
+  flex: 1;
+  height: 2px;
+  background: var(--line-soft);
+}
+
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-fill);
+  box-shadow: var(--glow-soft);
+  transition: width 1s linear;
+}
+
+#media-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+#media-controls button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+#media-controls button:hover {
+  color: var(--text);
+}
+
+#media-controls button.on {
+  color: var(--text);
+  text-shadow: var(--glow);
+}
+
+#volume {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+}
+
+/* ---------- bottom nav ---------- */
+#navbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(var(--sp-5), 6vw, 96px);
+  border-top: 1px solid var(--line);
+  background: linear-gradient(to top, rgb(var(--accent) / 0.05), transparent);
+}
+
+#navbar button {
+  position: relative;
+  min-width: 88px;
+  min-height: 44px;
+  align-self: center;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  transition: color var(--dur-med) var(--ease-out);
+}
+
+#navbar button:hover {
+  color: var(--text-dim);
+}
+
+#navbar button[aria-current="page"] {
+  color: var(--text);
+  text-shadow: var(--glow);
+}
+
+#navbar button[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 22px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: var(--accent-fill);
+  box-shadow: var(--glow-soft);
+}
+
+/* ---------- boot overlay ---------- */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  gap: var(--sp-3);
+  justify-items: center;
+  background: #000;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+#boot.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-shadow: var(--glow);
+  animation: boot-flicker 900ms steps(2, jump-none) 2;
+}
+
+.boot-sub {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.3em;
+  color: var(--text-dim);
+}
+
+.boot-line {
+  width: 320px;
+  height: 2px;
+  background: var(--line-soft);
+  margin-top: var(--sp-4);
+}
+
+#boot-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-fill);
+  box-shadow: var(--glow);
+  animation: boot-fill 1100ms var(--ease-out) forwards;
+}
+
+@keyframes boot-fill {
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes boot-flicker {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-title {
+    animation: none;
+  }
+  #boot-fill {
+    animation-duration: 300ms;
+  }
+}

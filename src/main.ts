@@ -1,0 +1,110 @@
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/chrome.css";
+import "./styles/pages.css";
+
+import { getState, subscribe } from "./state";
+import { initStatusbar, initNavbar, initClimate, initVolume, initDock, initMedia } from "./ui/chrome";
+import { initVehiclePage } from "./pages/vehicle";
+import { initDashPage } from "./pages/dash";
+import { cancelFx } from "./ui/fx";
+import { initCarScene } from "./three/carScene";
+
+// ---------- chrome ----------
+initStatusbar();
+initNavbar();
+initClimate();
+initVolume();
+initDock();
+initMedia();
+const vehiclePage = initVehiclePage();
+
+// ---------- status-center ticker ----------
+const statusCenter = document.getElementById("status-center")!;
+function renderStatusCenter(): void {
+  const s = getState();
+  if (s.page === "dash") {
+    statusCenter.textContent = dashPage.ticker();
+    return;
+  }
+  const mode = s.driveMode.toUpperCase();
+  statusCenter.textContent = `MODEL Y JUNIPER PERFORMANCE · ${mode} · ${Math.round((s.battery / 100) * 275)} MI`;
+}
+const dashPage = initDashPage(renderStatusCenter);
+renderStatusCenter();
+
+// ---------- 3D stage ----------
+const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
+const scene = initCarScene(canvas);
+
+// Dash mini aerial view: keep the scissor rect glued to the panel's window
+const dashViewInner = document.getElementById("dash-view-inner")!;
+function syncMiniView(): void {
+  if (getState().page !== "dash") {
+    scene.setMiniView(null);
+    return;
+  }
+  const r = dashViewInner.getBoundingClientRect();
+  scene.setMiniView({ x: r.x, y: r.y, w: r.width, h: r.height });
+}
+window.addEventListener("resize", syncMiniView);
+
+// ---------- react to state ----------
+subscribe((s, prev) => {
+  if (s.accent !== prev.accent) {
+    document.documentElement.dataset.accent = s.accent;
+    scene.setAccent(s.accent);
+  }
+  if (s.beams !== prev.beams || s.taillights !== prev.taillights) {
+    scene.setLights(s.beams, s.taillights);
+  }
+  if (s.xray !== prev.xray) {
+    scene.setXray(s.xray);
+  }
+  if (s.driveMode !== prev.driveMode) {
+    scene.setDriveMode(s.driveMode);
+    renderStatusCenter();
+  }
+  if (s.rideHeight !== prev.rideHeight) {
+    scene.setRideHeight(s.rideHeight);
+  }
+  if (s.page !== prev.page) {
+    scene.setPage(s.page);
+    syncMiniView();
+    renderStatusCenter();
+    if (s.page === "vehicle") vehiclePage.playIntro();
+    else if (s.page === "dash") dashPage.playIntro();
+    else cancelFx(); // drop any half-typed menu animations
+  }
+  if (s.brightness !== prev.brightness) {
+    document.documentElement.style.setProperty("--brightness", String(s.brightness));
+  }
+});
+
+// initial scene sync
+scene.setAccent(getState().accent);
+scene.setLights(getState().beams, getState().taillights);
+scene.setDriveMode(getState().driveMode);
+scene.setXray(getState().xray);
+scene.setRideHeight(getState().rideHeight);
+scene.setPage(getState().page);
+
+// ---------- boot sequence ----------
+const boot = document.getElementById("boot")!;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const bootDelay = reducedMotion ? 350 : 1400;
+setTimeout(() => {
+  boot.classList.add("done");
+  // subtle power-on flicker on the stage canvas
+  if (!reducedMotion) {
+    canvas.animate(
+      [
+        { opacity: 0.15 },
+        { opacity: 1 },
+        { opacity: 0.4 },
+        { opacity: 1 },
+      ],
+      { duration: 700, easing: "ease-out" }
+    );
+  }
+}, bootDelay);

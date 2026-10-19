@@ -1,0 +1,68 @@
+:root {
+  /* ---- accent themes (the Roadster UI's red <-> white monochrome switch) ---- */
+  --accent: 255 45 45;          /* crimson mode */
+  --accent-dim: 255 45 45 / 0.55;
+  --accent-faint: 255 45 45 / 0.28;
+  --accent-ghost: 255 45 45 / 0.12;
+  --accent-fill: rgb(var(--accent));
+  --glow: 0 0 6px rgb(var(--accent) / 0.65), 0 0 18px rgb(var(--accent) / 0.35);
+  --glow-soft: 0 0 10px rgb(var(--accent) / 0.35);
+
+  /* physical car colors (do NOT change with accent theme) */
+  --car-taillight: #ff2222;
+  --car-headlight: #eef4ff;
+  --car-drivetrain: #ffb347;
+
+  /* surfaces */
+  --bg: #000000;
+  --panel: rgba(255 255 255 / 0.02);
+  --line: rgb(var(--accent) / 0.42);
+  --line-strong: rgb(var(--accent) / 0.85);
+  --line-soft: rgb(var(--accent) / 0.18);
+  --dot: rgb(var(--accent) / 0.5);
+
+  /* text */
+  --text: rgb(var(--accent));
+  --text-dim: rgb(var(--accent) / 0.62);
+  --text-faint: rgb(var(--accent) / 0.38);
+
+  /* type */
+  --font-ui: "Chakra Petch", "Arial Narrow", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-2xl: 34px;
+
+  /* spacing (4/8 rhythm) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* chrome geometry */
+  --statusbar-h: 52px;
+  --dock-w: 64px;
+  --media-h: 56px;
+  --nav-h: 56px;
+
+  /* motion */
+  --dur-fast: 120ms;
+  --dur-med: 240ms;
+  --dur-slow: 420ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+
+  /* global brightness (Display > Brightness) */
+  --brightness: 1;
+}
+
+/* white/chalk accent mode */
+:root[data-accent="white"] {
+  --accent: 242 242 242;
+}

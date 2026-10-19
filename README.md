@@ -1,0 +1,114 @@
+# Juniper Console
+
+A retro-futuristic Tesla Roadster-style in-car UI, cloned as a web app and adapted
+for the **Model Y Juniper AWD**. Designed to run full-screen in the Tesla in-car
+browser (1920×1200 landscape, touch-first).
+
+> **Unofficial fan project.** Not affiliated with, sponsored by, or endorsed by
+> Tesla, Inc. in any way. "Tesla" and "Model Y" are trademarks of Tesla, Inc.,
+> used here only to describe what this UI is modeled after.
+
+
+## Screens (v1)
+
+- **Home** — holographic 3D Model Y Juniper AWD (original in-house GLB, modeled
+  in Blender — no third-party/Tesla assets): translucent
+  body, amber drivetrain (front + rear motors, battery floor), full-width lightbar
+  taillights, volumetric headlight beams, dot-grid floor. Drag to rotate (inertia +
+  idle auto-rotate).
+- **Vehicle** — drive-mode rail (Comfort / Balance / Sport / Custom) and four
+  sub-tabs:
+  - *Dynamics* — Acceleration, Ride & Handling, Regen, Steering (segmented controls)
+  - *Lights* — headlight beams + lightbar toggles (drive the 3D car live)
+  - *Display* — Appearance (Crimson ⇄ Chalk accent switch), Brightness
+  - *Charging* — charge-limit slider + live range bar
+- **Dash (Track Mode)** — real-data telemetry screen: MapLibre map with GPS
+  follow, G-meter with trail, trip stats, exterior temp, brake/accel/regen
+  pedals derived from filtered longitudinal G. Everything parks at NO SIGNAL
+  when there is no real source.
+- **Listen / Climate / Navigate** — styled "module offline — arriving in v2" placeholders.
+
+Global chrome: `P R N D` gear selector, battery %, live clock, left dot-grid dock
+(ride-height up/down), `< HI >` climate pill, media bar with fake playlist, bottom nav.
+
+## Stack
+
+Vanilla TypeScript + Vite + Three.js. No framework, no runtime deps beyond `three`.
+Fonts (Chakra Petch, Space Mono) are self-hosted OFL subsets — no CDN needed in the car.
+
+## Telemetry (DASH)
+
+Real sources only — no simulated fallbacks. Each GPS fix is projected onto a
+local ENU tangent plane (`ui/geo.ts`) and fused in a 6-state constant-
+acceleration Kalman filter (`ui/kalman.ts`) that prefers Doppler speed/heading
+over position differentials and weights every fix by its `accuracy` field, so
+degraded fixes (tunnels, tree cover) coast through on the physics model.
+Body-frame G is the filtered acceleration projected onto the travel direction;
+readers extrapolate the filter (`peek`) on `requestAnimationFrame`, so the
+gauges run at 60 FPS between ~1 Hz fixes. devicemotion outranks GPS-derived G
+where the platform offers it (rare in-car). BRAKE/ACCEL/REGEN pedals and
+regen kW are derived from filtered longitudinal G while live.
+
+Not wired (future pipelines): Tesla Fleet Telemetry API (needs a small
+server-side WebSocket proxy + auth — the browser can't hold the private key),
+CAN/ESP32 bridge (hardware), AERO BALANCE (no sensor source yet — parked).
+
+## Run
+
+```bash
+npm install
+npm run dev      # dev server (host: true — reachable from the car on your LAN)
+npm run dev:https # https dev server (self-signed cert) — required by the car
+npm run build    # typecheck + production build
+npm run preview  # serve the production build
+```
+
+To run it in the car: `npm run dev:https` on the PC, then in the Tesla
+browser (parked, same Wi-Fi) open `https://<your-lan-ip>:5173`. The cert is
+throwaway, so tap through the warning once. https is not optional there:
+geolocation is a secure-context API, and `https://localhost` only counts as
+secure on the dev machine itself. Tap "Allow" when the car asks for location —
+the DASH gauges run off it.
+
+Once deployed (push to `master` runs the Pages workflow, or `gh workflow run deploy.yml`):
+the car can just open `https://msrisabaranjan.github.io/juniper-console/` —
+real HTTPS, no dev server or cert warnings.
+
+## Credits & licenses
+
+- **Code** — MIT (see `LICENSE`).
+- **3D car (`public/models/car.glb`)** — original Juniper-adjacent model built
+  from scratch in Blender for this project (parametric loft, no traced or
+  extracted geometry, no Tesla marks). An earlier revision of this repo used a
+  mesh extracted from a Tesla app; that asset has been removed and replaced.
+- **Fonts** — Chakra Petch & Space Mono, self-hosted OFL subsets; license texts
+  in `public/fonts/OFL-*.txt`.
+- **Libraries** — three.js (MIT), MapLibre GL JS (BSD-3), Vite + TypeScript (MIT).
+- **Maps** — OpenFreeMap vector tiles (free non-commercial tier):
+  © [OpenFreeMap](https://openfreemap.org) · © OpenMapTiles · © OpenStreetMap contributors (ODbL).
+  Shown on the DASH map via the style's attribution control.
+- **Weather** — Open-Meteo.com (free non-commercial tier, data licensed CC BY 4.0);
+  credited in the DASH exterior-temp panel.
+
+## In-car hardening
+
+- Device-pixel-ratio capped at 1.5, rAF paused when the tab is hidden, no shadows
+  or post-processing — tuned for the in-car SoC.
+- ≥40px touch targets, no hover-only affordances, focus-visible outlines.
+- `prefers-reduced-motion` respected (boot flicker, auto-rotate, transitions).
+- Both accent themes keep ≥4.5:1 contrast on black.
+
+## Layout
+
+```
+src/
+  state.ts          tiny pub/sub app store
+  styles/           tokens.css (design layer) · base · chrome · pages
+  ui/               chrome.ts (statusbar/nav/climate/media) · segmented.ts · fx.ts
+                    sensors.ts (GPS -> ENU -> Kalman feed) · geo.ts · kalman.ts ·
+                    mapView.ts (MapLibre follow) · weather.ts (Open-Meteo)
+  pages/            vehicle.ts (mode rail + sub-tabs) · dash.ts (track telemetry)
+  three/            carScene.ts (Juniper stage: original GLB + dot grid + interaction)
+public/fonts/       self-hosted woff2 subsets + fonts.css + OFL license texts
+public/models/      car.glb (in-house Blender model) · mapstyle.json (OpenFreeMap HUD restyle)
+```
