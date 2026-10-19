@@ -203,6 +203,23 @@
   color: var(--text-dim);
 }
 
+/* narrow windows: shed media-strip sections so the controls never overflow */
+@media (max-width: 900px) {
+  #track-progress {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  #climate-pill {
+    display: none;
+  }
+
+  #track-info {
+    min-width: 110px;
+  }
+}
+
 /* ---------- bottom nav ---------- */
 #navbar {
   display: flex;
@@ -244,6 +261,13 @@
   transform: translateX(-50%);
   background: var(--accent-fill);
   box-shadow: var(--glow-soft);
+}
+
+@media (max-width: 700px) {
+  #navbar button {
+    min-width: 64px;
+    letter-spacing: 0.1em;
+  }
 }
 
 /* ---------- boot overlay ---------- */

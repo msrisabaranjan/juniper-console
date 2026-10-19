@@ -27,6 +27,10 @@ body {
 #app {
   position: relative;
   display: grid;
+  /* explicit min-0 column: without it the implicit auto column can never
+     shrink below the widest row's min-content (~980px), so on window
+     resize the whole shell overflowed and clipped the right side */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--statusbar-h) 1fr var(--media-h) var(--nav-h);
   height: 100dvh;
   width: 100vw;
