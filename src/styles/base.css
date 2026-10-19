@@ -27,8 +27,11 @@ body {
 #app {
   position: relative;
   display: grid;
+  /* explicit min-0 column: without it the implicit auto column can never
+     shrink below the widest row's min-content (~980px), so on window
+     resize the whole shell overflowed and clipped the right side */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--statusbar-h) 1fr var(--media-h) var(--nav-h);
-  grid-template-columns: var(--dock-w) 1fr;
   height: 100dvh;
   width: 100vw;
 }
@@ -47,14 +50,8 @@ body {
   z-index: 5;
 }
 
-#dock {
-  grid-row: 2;
-  z-index: 5;
-}
-
 #pages {
   grid-row: 2;
-  grid-column: 2;
   position: relative;
   z-index: 4;
   min-height: 0;

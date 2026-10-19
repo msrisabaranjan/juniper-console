@@ -8,7 +8,6 @@ export interface CarScene {
   setLights(beams: boolean, taillights: boolean): void;
   setXray(mode: XrayMode): void;
   setDriveMode(mode: DriveMode): void;
-  setRideHeight(steps: number): void;
   setPage(page: PageId): void;
   /**
    * Dash mode: render the scene as a mini aerial view inside this screen
@@ -329,7 +328,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
   rim.position.set(-6, 1.2, -5);
   scene.add(rim);
 
-  // ---- car wrapper: rotation / ride height / page offset all live here ----
+  // ---- car wrapper: rotation / page offset all live here ----
   const car = new THREE.Group();
   scene.add(car);
 
@@ -637,7 +636,6 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
 
   // ---- reactive targets ----
   let glowTarget = GLOW_BY_MODE.balance;
-  let heightTarget = 0;
   let groupXTarget = 0;
   let groupZTarget = 0;
   let camYTarget = CAM_BY_PAGE.home.y;
@@ -682,7 +680,6 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
 
     const glowMat = underGlow.material as THREE.MeshBasicMaterial;
     glowMat.opacity += (0.06 + glowTarget * 0.07 - glowMat.opacity) * 0.08;
-    car.position.y += (heightTarget - car.position.y) * 0.08;
     car.position.x += (groupXTarget - car.position.x) * 0.07;
     car.position.z += (groupZTarget - car.position.z) * 0.07;
     camera.position.y += (camYTarget - camera.position.y) * 0.06;
@@ -764,9 +761,6 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
     },
     setDriveMode(mode) {
       glowTarget = GLOW_BY_MODE[mode];
-    },
-    setRideHeight(steps) {
-      heightTarget = steps * 0.035;
     },
     setPage(page) {
       const vehicle = page === "vehicle";

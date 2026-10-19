@@ -9,6 +9,7 @@
 }
 
 #gear {
+  flex-shrink: 0;
   display: flex;
   gap: var(--sp-2);
 }
@@ -32,6 +33,7 @@
 }
 
 #battery {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -45,56 +47,32 @@
 
 #status-center {
   flex: 1;
+  /* without min-width:0 the nowrap ticker freezes this item at its text width
+     and the clock gets crushed/clipped on window resize — ticker yields first */
+  min-width: 0;
+  overflow: hidden;
   text-align: center;
   white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   color: var(--text-dim);
   letter-spacing: 0.14em;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
 }
 
 #clock {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   color: var(--text-dim);
   letter-spacing: 0.08em;
 }
 
-/* ---------- left dock ---------- */
-#dock {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) 0;
-}
-
-.dock-btn {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  color: var(--text-dim);
-  transition: color var(--dur-fast) var(--ease-out);
-}
-
-.dock-btn:hover,
-.dock-btn:active {
-  color: var(--text);
-}
-
-#dock-car {
-  color: var(--text);
-  filter: drop-shadow(0 0 4px rgb(var(--accent) / 0.5));
-}
-
-.dock-dots {
-  flex: 1;
-  width: 18px;
-  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
-  background-size: 6px 6px;
-  opacity: 0.7;
+@media (max-width: 860px) {
+  #status-center {
+    display: none; /* very narrow windows: gear + battery + clock always fit */
+  }
 }
 
 /* ---------- media strip ---------- */
@@ -225,6 +203,23 @@
   color: var(--text-dim);
 }
 
+/* narrow windows: shed media-strip sections so the controls never overflow */
+@media (max-width: 900px) {
+  #track-progress {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  #climate-pill {
+    display: none;
+  }
+
+  #track-info {
+    min-width: 110px;
+  }
+}
+
 /* ---------- bottom nav ---------- */
 #navbar {
   display: flex;
@@ -266,6 +261,13 @@
   transform: translateX(-50%);
   background: var(--accent-fill);
   box-shadow: var(--glow-soft);
+}
+
+@media (max-width: 700px) {
+  #navbar button {
+    min-width: 64px;
+    letter-spacing: 0.1em;
+  }
 }
 
 /* ---------- boot overlay ---------- */

@@ -1,4 +1,5 @@
 import { Marker, Map as MLMap, setWorkerUrl } from "maplibre-gl";
+import type { GeoJSONSource, LineLayerSpecification } from "maplibre-gl";
 import maplibreWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { SensorFeed } from "./sensors";
@@ -9,6 +10,8 @@ import type { SensorFeed } from "./sensors";
  *
  * Heading-up camera like the car's native nav: on each fix the map eases to
  * (position, heading, speed-based zoom) while the car arrow stays upright.
+ * Where the car has driven paints behind it as a royal-blue polyline — parked
+ * jitter and stale/teleport gaps never draw, they just start a new segment.
  * Dragging pauses following; it eases back after a beat. Before the first
  * fix the map parks on a default location with the readouts showing NO
  * SIGNAL. Style: public/mapstyle.json (dark HUD restyle); road colors follow
@@ -35,11 +38,22 @@ const ROAD_ALPHA: Record<(typeof ROAD_LAYERS)[number], number> = {
   road_motorway: 1,
 };
 
+// driven-path (track) policy: draw where the car actually went, not GPS noise
+const TRACK_RGB = [65, 105, 225] as const; // royal blue — the path keeps its own
+// color across accent themes so it always reads apart from the red roads
+const TRACK_MIN_SPEED = 0.5; // m/s below this the car is parked — skip the fix
+const TRACK_MIN_DIST_M = 3; // min spacing between drawn points, kills jitter
+const TRACK_MAX_GAP_MS = 30_000; // stale fixes this long start a new segment
+const TRACK_MAX_JUMP_M = 150; // one implausible hop also starts a new segment
+const TRACK_MAX_POINTS = 1500; // memory cap; oldest points get trimmed
+
 export interface MapView {
   start(): void;
   stop(): void;
   destroy(): void;
   setAccent(rgb: [number, number, number]): void;
+  /** Forget the drawn path (also useful from the __dashmap debug hook). */
+  clearTrack(): void;
   /** Debug/console access to the underlying MapLibre map. */
   getMap(): MLMap;
 }
@@ -74,12 +88,15 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
   });
   map.touchZoomRotate.disableRotation();
 
-  map.on("style.load", () => applyAccent());
+  map.on("style.load", () => {
+    applyAccent();
+    addTrackLayers();
+  });
 
   function applyAccent(): void {
+    const [r, g, b] = accent;
     for (const id of ROAD_LAYERS) {
       if (!map.getLayer(id)) continue;
-      const [r, g, b] = accent;
       map.setPaintProperty(id, "line-color", `rgba(${r}, ${g}, ${b}, ${ROAD_ALPHA[id]})`);
     }
   }
@@ -94,6 +111,89 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
   const marker = new Marker({ element: markerEl, rotationAlignment: "viewport", pitchAlignment: "map" })
     .setLngLat(DEFAULT_POS)
     .addTo(map);
+
+  // ---- driven path: GPS history as a royal-blue polyline under the car ----
+  let trackSegments: [number, number][][] = [];
+  let trackCount = 0;
+  let lastTrackAt = 0;
+
+  const trackData = () => ({
+    type: "Feature" as const,
+    properties: null,
+    geometry: { type: "MultiLineString" as const, coordinates: trackSegments },
+  });
+
+  function distM(a: [number, number], b: [number, number]): number {
+    const dy = (a[1] - b[1]) * 111_320;
+    const dx = (a[0] - b[0]) * 111_320 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+    return Math.hypot(dx, dy);
+  }
+
+  function pushTrack(): void {
+    (map.getSource("track") as GeoJSONSource | undefined)?.setData(trackData());
+  }
+
+  function addTrackLayers(): void {
+    if (!map.getSource("track")) {
+      map.addSource("track", { type: "geojson", data: trackData() });
+    }
+    if (map.getLayer("track_line")) return; // style reloaded under us, layers re-add
+    const [r, g, b] = TRACK_RGB;
+    const glow: LineLayerSpecification = {
+      id: "track_glow",
+      type: "line",
+      source: "track",
+      layout: {
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": `rgba(${r}, ${g}, ${b}, 0.16)`,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 7, 16, 15],
+        "line-blur": 3,
+      },
+    };
+    const line: LineLayerSpecification = {
+      id: "track_line",
+      type: "line",
+      source: "track",
+      layout: {
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": `rgba(${r}, ${g}, ${b}, 0.85)`,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.5, 16, 4],
+      },
+    };
+    map.addLayer(glow);
+    map.addLayer(line);
+  }
+
+  function appendTrack(pos: [number, number], speedMs: number): void {
+    if (speedMs < TRACK_MIN_SPEED) return; // parked: filtered jitter isn't a path
+    const now = performance.now();
+    const seg = trackSegments[trackSegments.length - 1];
+    const stale = !seg || now - lastTrackAt > TRACK_MAX_GAP_MS || distM(seg[seg.length - 1], pos) > TRACK_MAX_JUMP_M;
+    let added = false;
+    if (stale) {
+      trackSegments.push([pos]); // first fix or a signal gap: start a new segment
+      added = true;
+    } else if (distM(seg[seg.length - 1], pos) >= TRACK_MIN_DIST_M) {
+      seg.push(pos);
+      added = true;
+    }
+    lastTrackAt = now;
+    if (!added) return;
+    trackCount++;
+    while (trackCount > TRACK_MAX_POINTS) {
+      const head = trackSegments[0];
+      head.shift();
+      trackCount--;
+      if (head.length === 0) trackSegments.shift();
+    }
+    pushTrack();
+  }
 
   // ---- follow / drag state ----
   let following = true;
@@ -116,14 +216,17 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
       const pos: [number, number] = [s.lng, s.lat];
       marker.setLngLat(pos);
       // one easeTo per fresh fix; chained ~1s eases read as continuous glide
-      if (s.live && following && s.fixAt !== seenFixAt) {
+      if (s.live && s.fixAt !== seenFixAt) {
         seenFixAt = s.fixAt;
-        map.easeTo({
-          center: pos,
-          bearing: (s.heading * 180) / Math.PI, // heading-up: travel direction points up
-          zoom: speedZoom(s.speed),
-          duration: FOLLOW_EASE_MS,
-        });
+        appendTrack(pos, s.speed);
+        if (following) {
+          map.easeTo({
+            center: pos,
+            bearing: (s.heading * 180) / Math.PI, // heading-up: travel direction points up
+            zoom: speedZoom(s.speed),
+            duration: FOLLOW_EASE_MS,
+          });
+        }
       }
     }
 
@@ -152,6 +255,12 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
     setAccent(rgb) {
       accent = rgb;
       applyAccent();
+    },
+    clearTrack() {
+      trackSegments = [];
+      trackCount = 0;
+      lastTrackAt = 0;
+      pushTrack();
     },
     getMap() {
       return map;
