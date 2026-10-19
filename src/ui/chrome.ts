@@ -111,15 +111,6 @@ export function initVolume(): void {
   );
 }
 
-export function initDock(): void {
-  document.getElementById("dock-up")!.addEventListener("click", () =>
-    setState({ rideHeight: Math.min(2, getState().rideHeight + 1) })
-  );
-  document.getElementById("dock-down")!.addEventListener("click", () =>
-    setState({ rideHeight: Math.max(-2, getState().rideHeight - 1) })
-  );
-}
-
 function fmt(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);

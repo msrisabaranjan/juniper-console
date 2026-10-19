@@ -4,7 +4,7 @@ import "./styles/chrome.css";
 import "./styles/pages.css";
 
 import { getState, subscribe } from "./state";
-import { initStatusbar, initNavbar, initClimate, initVolume, initDock, initMedia } from "./ui/chrome";
+import { initStatusbar, initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
 import { initVehiclePage } from "./pages/vehicle";
 import { initDashPage } from "./pages/dash";
 import { cancelFx } from "./ui/fx";
@@ -15,7 +15,6 @@ initStatusbar();
 initNavbar();
 initClimate();
 initVolume();
-initDock();
 initMedia();
 const vehiclePage = initVehiclePage();
 
@@ -65,9 +64,6 @@ subscribe((s, prev) => {
     scene.setDriveMode(s.driveMode);
     renderStatusCenter();
   }
-  if (s.rideHeight !== prev.rideHeight) {
-    scene.setRideHeight(s.rideHeight);
-  }
   if (s.page !== prev.page) {
     scene.setPage(s.page);
     syncMiniView();
@@ -86,7 +82,6 @@ scene.setAccent(getState().accent);
 scene.setLights(getState().beams, getState().taillights);
 scene.setDriveMode(getState().driveMode);
 scene.setXray(getState().xray);
-scene.setRideHeight(getState().rideHeight);
 scene.setPage(getState().page);
 
 // ---------- boot sequence ----------

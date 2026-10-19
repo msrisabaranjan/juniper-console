@@ -423,7 +423,7 @@
   font-size: var(--fs-md);
 }
 
-/* the four compact panels share the left column evenly */
+/* the compact panels share the left column evenly */
 .dash-lower .dash-panel {
   flex: 1;
   min-height: 0;
@@ -630,33 +630,6 @@
 .dash-row b {
   font-weight: 400;
   color: rgb(var(--accent));
-}
-
-/* balance split bars */
-.balance {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-}
-
-.balance-bar {
-  position: relative;
-  flex: 1;
-  height: 6px;
-  border: 1px solid var(--line-soft);
-}
-
-.balance-mark {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  background: rgb(var(--accent));
-  box-shadow: var(--glow-soft);
-  transform: translateX(-50%);
-  transition: left var(--dur-med) var(--ease-out);
 }
 
 .dash-exit {

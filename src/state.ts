@@ -22,7 +22,6 @@ export interface AppState {
   fan: number; // 0..4
   volume: number; // 0..10
   brightness: number; // 0.6..1.15
-  rideHeight: number; // -2..+2 dock steps
   playing: boolean;
   trackIndex: number;
 }
@@ -46,7 +45,6 @@ const initial: AppState = {
   fan: 4,
   volume: 6,
   brightness: 1,
-  rideHeight: 0,
   playing: false,
   trackIndex: 0,
 };

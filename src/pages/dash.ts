@@ -12,9 +12,9 @@ import { createWeatherFeed } from "../ui/weather";
  * the filter's peek() extrapolates the physics model between ~1 Hz GPS fixes,
  * so the gauges run at 60 FPS while data lands once per second.
  * BRAKE / ACCEL / REGEN are derived from filtered longitudinal G while a live
- * fix is held and park at NO SIGNAL otherwise; AERO BALANCE has no sensor
- * source yet and stays parked. Map, trip stats and exterior temp follow the
- * same real sources (GPS + Open-Meteo) — offline they freeze and dash.
+ * fix is held and park at NO SIGNAL otherwise. Map, trip stats and exterior
+ * temp follow the same real sources (GPS + Open-Meteo) — offline they freeze
+ * and dash.
  */
 
 const STAGGER = 70; // ms between panel entrances
@@ -72,9 +72,6 @@ export function initDashPage(onStatus: () => void): DashPage {
     tripSpeed: $("dash-trip-speed"),
     tripLastMove: $("dash-trip-lastmove"),
     tripGps: $("dash-trip-gps"),
-    abalF: $("dash-abal-f"),
-    abalR: $("dash-abal-r"),
-    abalMark: $("dash-abal-mark"),
     exit: $("dash-exit"),
   };
 
@@ -93,11 +90,6 @@ export function initDashPage(onStatus: () => void): DashPage {
   let lastTrailAt = 0;
 
   const gScale = 10; // 1g = 10 svg units (ring at 14 ≈ 1.4g)
-
-  // no sensor source maps chassis/aero loads yet — park the panel
-  el.abalF.textContent = "—";
-  el.abalR.textContent = "—";
-  el.abalMark.style.left = "50%";
 
   function render(snap: SensorSnapshot): void {
     // pedals: derived from the Kalman-filtered longitudinal G

@@ -28,7 +28,6 @@ body {
   position: relative;
   display: grid;
   grid-template-rows: var(--statusbar-h) 1fr var(--media-h) var(--nav-h);
-  grid-template-columns: var(--dock-w) 1fr;
   height: 100dvh;
   width: 100vw;
 }
@@ -47,14 +46,8 @@ body {
   z-index: 5;
 }
 
-#dock {
-  grid-row: 2;
-  z-index: 5;
-}
-
 #pages {
   grid-row: 2;
-  grid-column: 2;
   position: relative;
   z-index: 4;
   min-height: 0;
