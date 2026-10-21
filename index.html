@@ -40,52 +40,20 @@
                 </div>
               </div>
 
-              <div class="dash-lower">
-                <div class="dash-col">
-                  <div class="dash-panel">
-                    <div class="dash-title">EXTERIOR TEMP</div>
-                    <div class="dash-value" id="dash-exttemp-val">—</div>
-                    <div class="dash-bar thin"><div class="dash-bar-fill" id="dash-exttemp-fill"></div></div>
-                    <div class="dash-credit">WX · OPEN-METEO.COM · CC BY 4.0</div>
-                  </div>
-                  <div class="dash-panel">
-                    <div class="dash-title">BRAKE</div>
-                    <div class="dash-bar"><div class="dash-bar-fill" id="dash-brake-fill"></div></div>
-                    <div class="dash-readout"><span id="dash-brake-val">—</span></div>
-                  </div>
-                  <div class="dash-panel">
-                    <div class="dash-title">ACCEL</div>
-                    <div class="dash-bar"><div class="dash-bar-fill" id="dash-accel-fill"></div></div>
-                    <div class="dash-readout"><span id="dash-accel-val">—</span></div>
-                  </div>
-                  <div class="dash-panel">
-                    <div class="dash-title">REGEN</div>
-                    <div class="dash-bar"><div class="dash-bar-fill" id="dash-regen-fill"></div></div>
-                    <div class="dash-readout"><span id="dash-regen-val">—</span></div>
-                  </div>
+              <div class="dash-panel dash-session">
+                <div class="dash-title">TRIP</div>
+                <div class="session-times">
+                  <div class="st"><span class="dash-sub">DISTANCE</span><span id="dash-trip-dist">0.0 MI</span></div>
+                  <div class="st"><span class="dash-sub">MOVING</span><span id="dash-trip-moving">0:00:00</span></div>
                 </div>
-
-                <div class="dash-col">
-                  <div class="dash-panel dash-session">
-                    <div class="dash-title">TRIP</div>
-                    <div class="session-times">
-                      <div class="st"><span class="dash-sub">DISTANCE</span><span id="dash-trip-dist">0.0 MI</span></div>
-                      <div class="st"><span class="dash-sub">MOVING</span><span id="dash-trip-moving">0:00:00</span></div>
-                    </div>
-                    <div class="dash-row"><span>SITTING</span><b id="dash-trip-sitting">0:00:00</b></div>
-                    <div class="dash-row"><span>SPEED</span><b id="dash-trip-speed">0 MPH</b></div>
-                    <div class="dash-row"><span>LAST MOVE</span><b id="dash-trip-lastmove">—</b></div>
-                    <div class="dash-row"><span>GPS</span><b id="dash-trip-gps">OFFLINE</b></div>
-                  </div>
-                </div>
+                <div class="dash-row"><span>SITTING</span><b id="dash-trip-sitting">0:00:00</b></div>
+                <div class="dash-row"><span>SPEED</span><b id="dash-trip-speed">0 MPH</b></div>
+                <div class="dash-row"><span>LAST MOVE</span><b id="dash-trip-lastmove">—</b></div>
+                <div class="dash-row"><span>GPS</span><b id="dash-trip-gps">OFFLINE</b></div>
               </div>
             </div>
 
-            <div class="dash-col">
-              <div class="dash-panel dash-view">
-                <div class="dash-title">TRACK VIEW</div>
-                <div class="dash-view-inner" id="dash-view-inner"></div>
-              </div>
+            <div class="dash-col dash-right">
               <div class="dash-panel dash-grow dash-gpanel">
                 <div class="dash-title">G-METER</div>
                 <svg id="dash-gsvg" viewBox="-16 -16 32 32" aria-hidden="true">
@@ -96,7 +64,31 @@
                   <polyline id="dash-gtrail" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.45" />
                   <circle id="dash-gdot" r="1.3" fill="currentColor" />
                 </svg>
-                <div class="dash-g-readout"><span id="dash-g-lat">0.00</span> LAT<span class="gsep">/</span><span id="dash-g-lon">0.00</span> LON</div>
+                <div class="dash-g-readout"><span id="dash-g-lat">0.00</span> LAT<span class="gsep">/</span><span id="dash-g-lon">0.00</span> LON<span class="gsep">/</span><span id="dash-g-total">0.00</span> G</div>
+              </div>
+              <div class="dash-panel">
+                <div class="dash-title">ACCEL</div>
+                <div class="dash-bar"><div class="dash-bar-fill" id="dash-accel-fill"></div></div>
+                <div class="dash-readout"><span id="dash-accel-val">—</span></div>
+              </div>
+              <div class="dash-panel">
+                <div class="dash-title">BRAKE</div>
+                <div class="dash-bar"><div class="dash-bar-fill" id="dash-brake-fill"></div></div>
+                <div class="dash-readout"><span id="dash-brake-val">—</span></div>
+              </div>
+              <div class="dash-panel">
+                <div class="dash-title">EXTERIOR TEMP</div>
+                <div class="dash-value" id="dash-exttemp-val">—</div>
+                <div class="dash-bar thin"><div class="dash-bar-fill" id="dash-exttemp-fill"></div></div>
+                <div class="dash-credit">WX · OPEN-METEO.COM · CC BY 4.0</div>
+              </div>
+              <div class="dash-panel">
+                <div class="dash-title">SPEED</div>
+                <div class="dash-bar dash-speed" id="dash-speed-bar">
+                  <div class="dash-speed-ramp" id="dash-speed-ramp"></div>
+                  <span class="dash-bar-peak" id="dash-speed-peak" aria-hidden="true"></span>
+                </div>
+                <div class="dash-readout"><span id="dash-speed-val">—</span><span class="dash-peak-val" id="dash-speed-peak-val"></span></div>
               </div>
               <button class="dash-exit" id="dash-exit" type="button">EXIT TRACK MODE</button>
             </div>
