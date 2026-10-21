@@ -1,4 +1,4 @@
-export type PageId = "home" | "vehicle" | "dash" | "climate" | "navigate";
+export type PageId = "home" | "vehicle" | "dash" | "media" | "navigate";
 export type Gear = "P" | "R" | "N" | "D";
 export type Accent = "red" | "white";
 export type DriveMode = "comfort" | "balance" | "sport" | "custom";
@@ -73,7 +73,9 @@ export const TRACKS = [
   { title: "Slow Mercury", artist: "Kite Parish", dur: 367 },
   { title: "To The Stars", artist: "Horizon One", dur: 236 },
   { title: "Painted Meridian", artist: "Stable Finch", dur: 254 },
-  { title: "Soft Vision", artist: "Juniper Lane", dur: 301 },
-  { title: "Lion Hour", artist: "Hollow Radio", dur: 212 },
+  { title: "Soft Visage", artist: "Juniper Lane", dur: 301 },
+  { title: "Linen Hour", artist: "Hollow Radio", dur: 212 },
   { title: "Petal Static", artist: "Orchid Glass", dur: 278 },
+  { title: "Window Mileage", artist: "Low Harbor", dur: 245 },
+  { title: "Coral Pressing", artist: "Paper Kirin", dur: 289 },
 ] as const;

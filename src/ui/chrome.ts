@@ -4,7 +4,7 @@ const NAV_ITEMS: { id: PageId; label: string }[] = [
   { id: "home", label: "HOME" },
   { id: "vehicle", label: "VEHICLE" },
   { id: "dash", label: "DASH" },
-  { id: "climate", label: "CLIMATE" },
+  { id: "media", label: "MEDIA" },
   { id: "navigate", label: "NAVIGATE" },
 ];
 

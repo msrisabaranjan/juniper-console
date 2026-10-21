@@ -58,7 +58,10 @@ browser (1920×1200 landscape, touch-first).
   traffic. No key ⇒ static, clearly-labelled estimates — never fake "live".
   When Nominatim/Valhalla are unreachable the map still flies on a dashed
   beeline with ROUTE OFFLINE in the HUD.
-- **Listen / Climate** — styled "module offline — arriving in v2" placeholders.
+- **Media** — the Roadster UI's "Listen" tab: Last Listened hero, Recently
+  Played + Made For You cover carousels, glitch→type-in entrance and card
+  cascade, hover equalizer on the art — clicking a cover makes it the live
+  track in the media strip. (Climate remains the `< HI >` pill in chrome.)
 
 Global chrome is bottom-only — there is no top status bar: `< HI >` climate
 controls and media bar with fake playlist sit above the bottom nav.
@@ -147,6 +150,7 @@ src/
                     alternates + traffic layer) · routing.ts (Nominatim/Valhalla) ·
                     traffic.ts (optional TomTom) · weather.ts (Open-Meteo)
   pages/            vehicle.ts (mode rail + sub-tabs) · dash.ts (track telemetry)
+                    · navigate.ts (map + routing) · media.ts (Listen-style browse)
   three/            carScene.ts (Juniper stage: original GLB + dot grid + interaction)
 public/fonts/       self-hosted woff2 subsets + fonts.css + OFL license texts
 public/models/      car.glb (in-house Blender model) · mapstyle.json (OpenFreeMap HUD restyle)

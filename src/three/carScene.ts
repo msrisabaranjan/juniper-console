@@ -38,7 +38,7 @@ const VIEW_BY_PAGE: Record<PageId, number> = {
   // driver's-side profile is PI+0.72 — rotate ~59deg past it toward the nose
   vehicle: -0.55 + Math.PI, // rear 3/4 behind the settings panel
   dash: Math.PI / 2, // nose up under the aerial mini-view camera
-  climate: Math.PI + 1.75,
+  media: Math.PI + 1.75,
   navigate: Math.PI + 1.75,
 };
 
@@ -52,7 +52,7 @@ const CAM_BY_PAGE: Record<PageId, { y: number; aimY: number }> = {
   vehicle: { y: 2.45, aimY: 0.75 },
   dash: { y: 1.15, aimY: 0.65 }, // main camera idles low; it's hidden behind
   // the dash backdrop while the aerial camera draws the mini view
-  climate: { y: 1.15, aimY: 0.65 },
+  media: { y: 1.15, aimY: 0.65 },
   navigate: { y: 1.15, aimY: 0.65 },
 };
 
