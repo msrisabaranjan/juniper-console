@@ -1,8 +1,13 @@
 import { Marker } from "maplibre-gl";
-import type { GeoJSONSource, LineLayerSpecification, Map as MLMap } from "maplibre-gl";
+import type {
+  GeoJSONSource,
+  LineLayerSpecification,
+  Map as MLMap,
+  RasterLayerSpecification,
+} from "maplibre-gl";
 import { createMapView } from "./mapView";
 import type { SensorFeed } from "./sensors";
-import { cumulativeMeters, routeProgress, type LngLat, type RouteResult } from "./routing";
+import { cumulativeMeters, pointAlong, routeProgress, type LngLat, type RouteResult } from "./routing";
 
 /**
  * NAVIGATE map — the Roadster-style wireframe 3D nav (the 0:48/1:24 beat of
@@ -12,16 +17,27 @@ import { cumulativeMeters, routeProgress, type LngLat, type RouteResult } from "
  * On top of that shared rig this adds the routing overlay: a royal-blue route
  * polyline (dark casing + glow + core, always blue — the Tesla screen never
  * re-tints the route), a gold diamond destination pin, the destination block
- * itself extruded in gold while you drive to it, and two camera modes —
- * FOLLOW (tilted, heading-up, car-centered) and OVERVIEW (fit the whole route,
- * gentle tilt). Progress along the route is computed per GPS fix so the ETA
- * card counts down honestly.
+ * itself extruded in gold while you drive to it, and three camera modes —
+ * PLAN (flat 2D aerial showing the whole decision: active route + ghosted
+ * alternates + on-map minute labels), FOLLOW (tilted heading-up chase cam at
+ * the arrow) and OVERVIEW (fit the route, gentle tilt). Progress along the
+ * route is computed per GPS fix so the ETA card counts down honestly.
+ *
+ * Alternates ride in the same geojson source, flagged `alt`: they ghost in
+ * under the active royal-blue route as thin dashed steel lines, and selecting
+ * one just reorders the list (the page owns selection; this map only paints).
+ * Every candidate carries a `idx` property so plan-mode taps on lines or
+ * labels can be routed back to the page via onRouteTap. The optional traffic
+ * layer is a transparent raster (TomTom dark-tuned flow tiles, key-gated by
+ * the page) inserted under the route lines, refreshed on a 5-minute tile
+ * bucket so congestion colors keep pace while driving.
  */
 
-const FOLLOW_PITCH = 55; // street-level 3D tilt, like the video
+const FOLLOW_PITCH = 50; // street-level 3D chase tilt, like the video
 const IDLE_PITCH = 45; // no destination yet — showcase the extrusions
 const OVERVIEW_PITCH = 40; // overview keeps some pitch — wireframes read flat at 0
-const FOLLOW_PARKED_ZOOM = 15.8;
+const PLAN_PITCH = 0; // plan view is a flat north-up map, not a flyover
+const FOLLOW_PARKED_ZOOM = 16.9; // close enough to read the street ahead, not just the block
 
 // route line is royal blue in every theme — the planned route keeps its own
 // color apart from the red roads (matches the DASH driven-path blue)
@@ -30,28 +46,77 @@ const ROUTE_BLUE = "rgba(65, 105, 225, 0.28)";
 // destination highlight — same amber the DASH telemetry bars use (--car-drivetrain)
 const GOLD_RGB = "255, 179, 71";
 
+export type NavMode = "follow" | "overview" | "plan";
+
 export interface NavMap {
   start(): void;
   stop(): void;
   destroy(): void;
   setAccent(rgb: [number, number, number]): void;
-  /** Paint (or clear with null) the routed path + destination pin. */
-  setRoute(route: RouteResult | null): void;
-  setMode(mode: "follow" | "overview"): void;
-  getMode(): "follow" | "overview";
+  /**
+   * Paint (or clear with null/[]) the routed paths + destination pin.
+   * routes[0] is the ACTIVE route (royal blue); the rest are ghosted alternates.
+   * labels aligns with routes and puts a minute badge at each path's midpoint
+   * in plan mode ("12 MIN" for the pick, "+3 MIN" deltas for the ghosts).
+   */
+  setRoutes(routes: RouteResult[] | null, labels?: (string | null)[]): void;
+  /**
+   * Enable the traffic raster with the given tile template(s), or disable it
+   * with null. Attribution travels with the source; templates get a cache-
+   * busting bucket param appended automatically on each 5-minute refresh.
+   */
+  setTraffic(tiles: string[] | null): void;
+  setMode(mode: NavMode): void;
+  getMode(): NavMode;
+  /** Report taps on a route line/label (plan + overview modes) by index. */
+  onRouteTap(cb: (idx: number) => void): void;
+  /** Any map click, any mode — raw position + original mouse event (demo hook). */
+  onMapClick(cb: (pos: LngLat, ev: MouseEvent) => void): void;
+  /** Preview-only demo fix: park the arrow/chase cam at an off-route spot. */
+  setDemoPos(pos: LngLat | null, headingRad?: number): void;
   /** Fraction [0..1] of the current route the car has completed. */
   progress(pos: LngLat): number;
   getMap(): MLMap;
 }
 
-const routeData = (route: RouteResult | null) => ({
-  type: "Feature" as const,
-  properties: null,
-  geometry: {
-    type: "LineString" as const,
-    coordinates: route ? route.coords.map((c) => [c[0], c[1]]) : [],
-  },
-});
+// lines carry {alt, idx}, labels are extra Point features carrying {alt, idx,
+// label} — line layers ignore point geometry, the symbol layer reads `has label`
+const routeData = (
+  route: RouteResult | null,
+  alts: RouteResult[],
+  labels: (string | null)[]
+) => {
+  const lineFeature = (r: RouteResult, idx: number, alt: boolean) => ({
+    type: "Feature" as const,
+    properties: { alt, idx },
+    geometry: { type: "LineString" as const, coordinates: r.coords.map((c) => [c[0], c[1]]) },
+  });
+  // badge sits mid-path; alternates sample off-center so co-linear stretches
+  // don't stack two labels on the same pixel
+  const labelFeature = (r: RouteResult, idx: number, alt: boolean) => {
+    const text = labels[idx];
+    if (!text) return null;
+    const f = alt ? (idx % 2 === 1 ? 0.62 : 0.38) : 0.5;
+    const mid = pointAlong(r.coords, cumulativeMeters(r.coords), f);
+    if (!mid) return null;
+    return {
+      type: "Feature" as const,
+      properties: { alt, idx, label: text },
+      geometry: { type: "Point" as const, coordinates: mid.pos },
+    };
+  };
+  const feats: GeoJSON.Feature[] = [
+    ...(route ? [lineFeature(route, 0, false)] : []),
+    ...alts.map((a, i) => lineFeature(a, i + 1, true)),
+  ];
+  const badge = (r: RouteResult, idx: number, alt: boolean): void => {
+    const p = labelFeature(r, idx, alt);
+    if (p) feats.push(p);
+  };
+  if (route) badge(route, 0, false);
+  alts.forEach((a, i) => badge(a, i + 1, true));
+  return { type: "FeatureCollection" as const, features: feats };
+};
 
 export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
   const view = createMapView(container, feed, {
@@ -65,7 +130,12 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
   const map = view.getMap();
 
   let route: RouteResult | null = null;
+  let alts: RouteResult[] = []; // ghosted alternates; routes[0] on the page side is `route`
+  let routeLabels: (string | null)[] = []; // plan-mode badges, aligned to [route, ...alts]
   let following = true; // our own mirror of the follow/overview mode
+  let curMode: NavMode = "follow"; // last camera mode commanded (drives label/tap gating)
+  let tapCb: ((idx: number) => void) | null = null;
+  let clickCb: ((pos: LngLat, ev: MouseEvent) => void) | null = null;
   let sweepTimer: number | undefined;
   let hlTimers: number[] = [];
   let hlDone = false; // gold building highlight already resolved for this route
@@ -392,25 +462,47 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
   function probeOrRing(): void {
     if (hlDone || destRingFallback || !route || following) return;
     const dest = route.coords[route.coords.length - 1];
-    map.jumpTo({ center: dest, zoom: 14.6, pitch: IDLE_PITCH });
+    const pitch = curMode === "plan" ? PLAN_PITCH : IDLE_PITCH; // fly back the way we came
+    map.jumpTo({ center: dest, zoom: 14.6, pitch });
     hlTimers.push(
       window.setTimeout(() => {
         if (!hlDone) fallbackRing();
-        if (!following && route) fitRoute();
+        if (!following && route) fitRoute(curMode === "plan");
       }, 3000),
     );
   }
 
   // ------------------------------------------------------------- route layers
   let source: GeoJSONSource | null = null;
+  // NOTE: map.isStyleLoaded() is a flaky gate — it flickers to false while the
+  // style fetches glyphs/tilejson mid-camera-move. overlayReady flips true once
+  // the route source+layers actually exist; initRouteOverlay re-runs on every
+  // style load and re-paints from the route/alts closure, so setRoutes can
+  // safely paint whenever overlayReady is true, ignoring transient fetch state.
+  let overlayReady = false;
 
   const ROUTE_IDS = ["route_casing", "route_glow", "route_line", "route_dash"] as const;
+  const ALT_IDS = ["route_alt_casing", "route_alt_line"] as const;
+  const LABEL_ID = "route_labels";
+  const TAPPABLE_IDS = ["route_labels", "route_alt_line", "route_line"] as const;
 
   function addRouteLayers(): void {
     // royal-blue core + glow over a dark casing; the white centerline dashes
-    // only show for beeline fallbacks (real route hides route_dash, and vice versa)
-    const paints: [string, LineLayerSpecification["paint"]][] = [
-      ["route_casing", { "line-color": "rgba(0, 0, 0, 0.85)", "line-width": 8.5 }],
+    // only show for beeline fallbacks (real route hides route_dash, and vice versa).
+    // Alternate routes share the source but carry alt=true: thin dashed steel
+    // ghosts, painted first so the active blue always stacks over them.
+    const paints: [string, LineLayerSpecification["paint"], boolean][] = [
+      [
+        "route_alt_casing",
+        { "line-color": "rgba(0, 0, 0, 0.7)", "line-width": 5.5 },
+        true,
+      ],
+      [
+        "route_alt_line",
+        { "line-color": "rgba(150, 163, 184, 0.62)", "line-width": 3, "line-dasharray": [2.4, 1.8] },
+        true,
+      ],
+      ["route_casing", { "line-color": "rgba(0, 0, 0, 0.85)", "line-width": 8.5 }, false],
       [
         "route_glow",
         {
@@ -420,8 +512,9 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
           // smear the thin route line into haze, so it tapers down with zoom
           "line-blur": ["interpolate", ["linear"], ["zoom"], 11, 0.6, 13.5, 2, 16, 2],
         },
+        false,
       ],
-      ["route_line", { "line-color": ROUTE_RGB, "line-width": 5.5, "line-opacity": 0.95 }],
+      ["route_line", { "line-color": ROUTE_RGB, "line-width": 5.5, "line-opacity": 0.95 }, false],
       [
         "route_dash",
         {
@@ -429,55 +522,163 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
           "line-width": 2.4,
           "line-dasharray": [2, 2.2],
         },
+        false,
       ],
     ];
-    for (const [id, paint] of paints) {
+    for (const [id, paint, isAlt] of paints) {
       if (map.getLayer(id)) map.removeLayer(id);
       const layer: LineLayerSpecification = {
         id,
         type: "line",
         source: "nav-route",
         layout: { "line-cap": "round", "line-join": "round" },
+        filter: isAlt ? ["==", ["get", "alt"], true] : ["==", ["get", "alt"], false],
         paint,
       };
       map.addLayer(layer);
     }
+    // plan-mode badges: minute deltas floating on each path (glyphs come from
+    // the style's OpenFreeMap font stack); opacity is mode-gated in showRoute
+    if (map.getLayer(LABEL_ID)) map.removeLayer(LABEL_ID);
+    map.addLayer({
+      id: LABEL_ID,
+      type: "symbol",
+      source: "nav-route",
+      filter: ["has", "label"],
+      layout: {
+        "text-field": ["get", "label"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 13,
+        "text-offset": [0, -0.9],
+        "text-allow-overlap": true, // the whole point is seeing every option at once
+      },
+      paint: {
+        "text-color": ["case", ["==", ["get", "alt"], false], "#ffffff", "rgb(186, 197, 214)"],
+        "text-halo-color": "rgba(0, 0, 0, 0.95)",
+        "text-halo-width": 2.5,
+        "text-opacity": 0,
+      },
+    });
   }
 
   function showRoute(): void {
     // real Valhalla routes draw royal blue; an offline beeline draws white
-    // dashes instead; a cleared route leaves everything invisible (no data)
+    // dashes instead; a cleared route leaves everything invisible (no data).
+    // Alternates only ghost for real routes (a beeline has no alternates).
     const real = route !== null && !route.offline;
     for (const id of ROUTE_IDS) {
       if (!map.getLayer(id)) continue;
       const shown = real ? id !== "route_dash" : route !== null && id === "route_dash";
       map.setPaintProperty(id, "line-opacity", shown ? (id === "route_line" ? 0.95 : 1) : 0);
     }
+    for (const id of ALT_IDS) {
+      if (!map.getLayer(id)) continue;
+      map.setPaintProperty(id, "line-opacity", real && alts.length > 0 ? 1 : 0);
+    }
+    // badges only belong to the flat plan view — no labels over a chase cam
+    if (map.getLayer(LABEL_ID)) {
+      map.setPaintProperty(LABEL_ID, "text-opacity", curMode === "plan" && real ? 1 : 0);
+    }
   }
 
-  // fit the whole route with a comfortable margin, keeping some tilt so the
-  // wireframe blocks stay legible in overview
-  function fitRoute(): void {
+  // ---------------------------------------------------------------- traffic
+  // TomTom flow tiles (key-gated by the page): transparent dark-tuned PNGs
+  // composited under the route lines. MapLibre handles fetch/cache; we only
+  // re-bucket the URL every 5 minutes so the live colors keep pace, and the
+  // source's attribution string rides the © TomTom credit in/out with the layer.
+  let trafficTiles: string[] | null = null;
+  let trafficBucket = 0;
+  let trafficTimer: number | undefined;
+
+  const bucketedTiles = (): string[] => (trafficTiles ?? []).map((t) => `${t}&t=${trafficBucket}`);
+
+  function applyTraffic(): void {
+    if (!trafficTiles) return;
+    const url = bucketedTiles();
+    const src = map.getSource("traffic_flow") as { setTiles?: (t: string[]) => void } | undefined;
+    if (src?.setTiles) src.setTiles(url);
+    else if (!src) {
+      map.addSource("traffic_flow", {
+        type: "raster",
+        tiles: url,
+        tileSize: 512,
+        maxzoom: 16,
+        attribution: "© TomTom",
+      });
+    }
+    if (!map.getLayer("traffic_flow")) {
+      const layer: RasterLayerSpecification = {
+        id: "traffic_flow",
+        type: "raster",
+        source: "traffic_flow",
+        paint: { "raster-opacity": 0.92 },
+      };
+      // slip under the whole route overlay (alt ghosts first, then casing) so
+      // congestion never hides the plan; during style (re)init the route
+      // layers land after the traffic and stack above it naturally
+      const below = map.getLayer("route_alt_casing")
+        ? "route_alt_casing"
+        : map.getLayer("route_casing")
+          ? "route_casing"
+          : undefined;
+      map.addLayer(layer, below);
+    }
+  }
+
+  function setTrafficInternal(tiles: string[] | null): void {
+    trafficTiles = tiles && tiles.length ? tiles : null;
+    if (trafficTimer !== undefined) {
+      window.clearInterval(trafficTimer);
+      trafficTimer = undefined;
+    }
+    if (map.getLayer("traffic_flow")) map.removeLayer("traffic_flow");
+    if (map.getSource("traffic_flow")) map.removeSource("traffic_flow");
+    if (!trafficTiles) return;
+    trafficBucket = Math.floor(Date.now() / 300_000);
+    if (overlayReady) applyTraffic();
+    trafficTimer = window.setInterval(() => {
+      const b = Math.floor(Date.now() / 300_000);
+      if (b !== trafficBucket) {
+        trafficBucket = b;
+        applyTraffic(); // fresh bucket = fresh traffic state for the visible tiles
+      }
+    }, 30_000);
+  }
+
+  // fit the whole decision with a comfortable margin. Plan mode frames every
+  // candidate (active + ghosts) flat and north-up; overview keeps some tilt and
+  // only cares about the active route
+  function fitRoute(plan: boolean): void {
     if (!route || route.coords.length < 2) return;
     let west = Infinity;
     let east = -Infinity;
     let south = Infinity;
     let north = -Infinity;
-    for (const [lon, lat] of route.coords) {
-      if (lon < west) west = lon;
-      if (lon > east) east = lon;
-      if (lat < south) south = lat;
-      if (lat > north) north = lat;
-    }
+    const sweep = (coords: LngLat[]): void => {
+      for (const [lon, lat] of coords) {
+        if (lon < west) west = lon;
+        if (lon > east) east = lon;
+        if (lat < south) south = lat;
+        if (lat > north) north = lat;
+      }
+    };
+    sweep(route.coords);
+    if (plan) for (const a of alts) sweep(a.coords);
     // guard the degenerate box: fitBounds clips its padding to half the
     // smaller viewport dimension, so a near-zero-span bbox (HOME -> HOME)
     // would crash with "padding exceeds viewport dimensions"
     const padX = (east - west) * 0.25 + 0.004;
     const padY = (north - south) * 0.25 + 0.004;
+    const narrow = window.innerWidth <= 900; // card docks bottom-left down there too
     map.fitBounds([west - padX, south - padY, east + padX, north + padY], {
-      padding: { top: 70, bottom: 70, left: 70, right: 70 },
+      // the frame dodges our own chrome: route card on the left, traffic rail
+      // on the right, search bar up top, quick row + status line at the bottom
+      padding: narrow
+        ? { top: 70, bottom: 150, left: 340, right: 50 }
+        : { top: 80, bottom: 110, left: 350, right: 130 },
       duration: 1400,
-      maxZoom: 14.5,
+      maxZoom: plan ? 13.8 : 14.5,
+      ...(plan ? { pitch: PLAN_PITCH, bearing: 0 } : {}),
     });
   }
 
@@ -487,12 +688,15 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
   // a style reload wipes the overlay
   const initRouteOverlay = (): void => {
     source = null;
-    if (!map.getSource("nav-route")) map.addSource("nav-route", { type: "geojson", data: routeData(route) });
+    if (trafficTiles) applyTraffic(); // re-add first, so route layers stack above it
+    if (!map.getSource("nav-route"))
+      map.addSource("nav-route", { type: "geojson", data: routeData(route, alts, routeLabels), tolerance: 8 });
     addRouteLayers();
     if (hlDone && hlData && !map.getSource("dest_hl")) {
       map.addSource("dest_hl", { type: "geojson", data: hlData }); // style reload re-seed
     }
     ensureHlLayers();
+    overlayReady = true;
     showRoute();
   };
   if (map.isStyleLoaded()) initRouteOverlay();
@@ -504,6 +708,34 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
   map.on("idle", () => {
     if (route && !hlDone && !destRingFallback) tryDestHl();
   });
+
+  // plan-mode taps: pick a candidate by tapping its line or badge on the map
+  // (hit tolerance comes from the source's `tolerance: 8`). Only armed while
+  // a flat frame is up — a click during a chase-cam drive is a stray click.
+  map.on("click", (ev) => {
+    if (!tapCb || curMode === "follow" || !route) return;
+    const layers = TAPPABLE_IDS.filter((id) => map.getLayer(id));
+    if (!layers.length) return;
+    for (const f of map.queryRenderedFeatures(ev.point, { layers })) {
+      const idx = f.properties?.idx;
+      if (typeof idx === "number") {
+        tapCb(idx);
+        return;
+      }
+    }
+  });
+  // raw click feed for the page (mode-agnostic; the ALT+click demo hook uses it)
+  map.on("click", (ev) => {
+    clickCb?.([ev.lngLat.lng, ev.lngLat.lat], ev.originalEvent as MouseEvent);
+  });
+  for (const id of TAPPABLE_IDS) {
+    map.on("mouseenter", id, () => {
+      if (curMode !== "follow") map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", id, () => {
+      map.getCanvas().style.cursor = "";
+    });
+  }
 
   // idle showcase sweep: with no live GPS, slowly yaw the pitched camera so
   // the wireframe blocks read as 3D instead of a flat frozen frame
@@ -538,42 +770,59 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
       for (const t of hlTimers) window.clearTimeout(t);
       stopHlPulse();
       if (sweepTimer) window.clearTimeout(sweepTimer);
+      if (trafficTimer !== undefined) window.clearInterval(trafficTimer);
       setPin(null);
       view.destroy();
     },
     setAccent(rgb: [number, number, number]): void {
       view.setAccent(rgb);
     },
-    setRoute(next: RouteResult | null): void {
-      route = next;
+    setRoutes(next: RouteResult[] | null, labels?: (string | null)[]): void {
+      route = next && next.length ? next[0] : null;
+      alts = next ? next.slice(1) : [];
+      routeLabels = labels ?? [];
       clearDestHl();
-      if (map.isStyleLoaded()) {
-        // late enough for the source to exist; early (pre-load) routes are
-        // painted by initRouteOverlay the moment the style lands
+      if (overlayReady) {
+        // overlay exists (source+layers) — paint immediately; a route set
+        // before the first style load is painted by initRouteOverlay instead
         if (!source) source = map.getSource("nav-route") as GeoJSONSource | null;
         if (!source) {
-          map.addSource("nav-route", { type: "geojson", data: routeData(next) });
+          map.addSource("nav-route", { type: "geojson", data: routeData(route, alts, routeLabels), tolerance: 8 });
           source = map.getSource("nav-route") as GeoJSONSource;
         } else {
-          source.setData(routeData(next));
+          source.setData(routeData(route, alts, routeLabels));
         }
         if (!ROUTE_IDS.every((id) => map.getLayer(id))) addRouteLayers();
         showRoute();
       }
-      if (!next) {
+      if (!next || !route) {
         setPin(null);
-        setModeInternal("follow");
+        setModeInternal("follow"); // route cleared — back to the idle showcase rig
         return;
       }
-      setPin(next.coords[next.coords.length - 1]);
-      setModeInternal("overview"); // start in overview so the whole plan reads at a glance
-      scheduleDestHl(1500); // after the fitBounds fly, tiles under the pin are loaded
+      // the page owns plan/overview/follow transitions now (preview → GO →
+      // drive); painting never yanks the camera — mid-drive ALT switches in
+      // particular must not drop the chase cam out from under the driver
+      setPin(route.coords[route.coords.length - 1]);
+      scheduleDestHl(1500); // after the fit, tiles under the pin are loaded
     },
-    setMode(mode: "follow" | "overview"): void {
+    setTraffic(tiles: string[] | null): void {
+      setTrafficInternal(tiles);
+    },
+    setMode(mode: NavMode): void {
       setModeInternal(mode);
     },
     getMode() {
-      return following ? "follow" : "overview";
+      return curMode;
+    },
+    onRouteTap(cb: (idx: number) => void): void {
+      tapCb = cb;
+    },
+    onMapClick(cb: (pos: LngLat, ev: MouseEvent) => void): void {
+      clickCb = cb;
+    },
+    setDemoPos(pos: LngLat | null, headingRad?: number): void {
+      view.setOverridePos(pos ? [pos[0], pos[1]] : null, headingRad);
     },
     progress(pos: LngLat): number {
       if (!route) return 0;
@@ -584,19 +833,51 @@ export function createNavMap(container: HTMLElement, feed: SensorFeed): NavMap {
     },
   };
 
-  // shared follow/overview switch so setRoute and setMode agree on one path
-  function setModeInternal(mode: "follow" | "overview"): void {
+  // shared follow/overview/plan switch so setMode and the page agree on one path
+  function setModeInternal(mode: NavMode): void {
+    curMode = mode;
     if (mode === "follow") {
       following = true;
       view.setFollow(true, false);
-      view.setCamera(FOLLOW_PITCH, FOLLOW_PARKED_ZOOM); // next fix flies heading-up again
-      if (!route) view.setCamera(IDLE_PITCH, FOLLOW_PARKED_ZOOM); // idle showcase tilt
+      const pitch = route ? FOLLOW_PITCH : IDLE_PITCH;
+      view.setCamera(pitch, FOLLOW_PARKED_ZOOM); // next fix flies heading-up again
+      if (route) {
+        // explicit fly into the chase POV: with live GPS the next fix re-eases
+        // anyway, but a parked/stale fix (desktop preview, GPS OFFLINE) needs
+        // the move commanded here or the camera would sit in the plan frame
+        const s = feed.read();
+        const pos: LngLat = s.lat != null && s.lng != null ? [s.lng, s.lat] : route.coords[0];
+        map.easeTo({
+          center: pos,
+          bearing: s.live ? (s.heading * 180) / Math.PI : startBearingDeg(route),
+          zoom: FOLLOW_PARKED_ZOOM,
+          pitch,
+          duration: 1700,
+        });
+      }
+    } else if (mode === "plan") {
+      following = false;
+      view.setFollow(false, true); // lock: panning the plan must not snap back
+      view.setCamera(PLAN_PITCH, FOLLOW_PARKED_ZOOM);
+      fitRoute(true); // every candidate in frame at once
+      scheduleDestHl(2600); // re-arm in case the highlight missed while driving
     } else {
       following = false;
       view.setFollow(false, true); // lock: panning an overview must not snap back mid-route
       view.setCamera(OVERVIEW_PITCH, FOLLOW_PARKED_ZOOM);
-      fitRoute();
+      fitRoute(false);
       scheduleDestHl(2600); // re-arm in case the highlight missed while driving
     }
+    showRoute(); // plan-mode badge opacity rides the mode
+  }
+
+  // heading of the route's first real segment, for framing a parked chase cam
+  function startBearingDeg(r: RouteResult): number {
+    for (let i = 1; i < r.coords.length; i++) {
+      const dx = (r.coords[i][0] - r.coords[i - 1][0]) * Math.cos((r.coords[i][1] * Math.PI) / 180);
+      const dy = r.coords[i][1] - r.coords[i - 1][1];
+      if (dx || dy) return (Math.atan2(dx, dy) * 180) / Math.PI;
+    }
+    return map.getBearing();
   }
 }

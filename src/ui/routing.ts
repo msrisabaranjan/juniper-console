@@ -44,6 +44,9 @@ export interface RouteResult {
   timeSec: number;
   steps: RouteStep[];
   offline: boolean; // true = beeline fallback, no real route behind it
+  /** Live-traffic seconds once TomTom re-prices this geometry; null = the
+   * static (time-of-day-free) Valhalla estimate is all we honestly have. */
+  liveSec: number | null;
 }
 
 export type LngLat = [number, number]; // lon, lat
@@ -52,7 +55,7 @@ const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const VALHALLA = "https://valhalla1.openstreetmap.de/route";
 const FETCH_TIMEOUT_MS = 8000;
 
-async function fetchTimeout(url: string, init?: RequestInit): Promise<Response> {
+export async function fetchTimeout(url: string, init?: RequestInit): Promise<Response> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -78,17 +81,32 @@ export async function searchPlaces(query: string, near?: LngLat): Promise<Place[
   const res = await fetchTimeout(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`search ${res.status}`);
   const rows = (await res.json()) as { display_name?: string; lat?: string; lon?: string }[];
-  return rows
-    .filter((r) => r.lat && r.lon && r.display_name)
-    .map((r) => {
-      const parts = (r.display_name as string).split(", ");
-      return {
-        name: parts[0],
-        detail: parts.slice(1, 4).join(", "),
-        lat: Number(r.lat),
-        lon: Number(r.lon),
-      };
-    });
+  const toPlace = (r: (typeof rows)[number]): Place => {
+    const parts = (r.display_name as string).split(", ");
+    return {
+      name: parts[0],
+      detail: parts.slice(1, 4).join(", "),
+      lat: Number(r.lat),
+      lon: Number(r.lon),
+    };
+  };
+  let places = rows.filter((r) => r.lat && r.lon && r.display_name).map(toPlace);
+  // a bare word like "pizza" can still rank some far-flown same-named village
+  // above every local match, and one bad pick drifts the bias (and a >1500 km
+  // route dies with a 400). If anything sits within ~150 km of the car, show
+  // only local hits; the world stays reachable by typing more of the address.
+  if (near && places.length) {
+    const nearKm = (p: Place): number =>
+      Math.hypot((p.lon - near[0]) * 111.32 * localCos(p.lat, near[1]), (p.lat - near[1]) * 111.32);
+    const local = places.filter((p) => nearKm(p) <= 150);
+    if (local.length) places = local;
+  }
+  return places;
+}
+
+// equirectangular x-scale for a local distance check (good enough at ~km scale)
+function localCos(latA: number, latB: number): number {
+  return Math.cos((((latA + latB) / 2) * Math.PI) / 180);
 }
 
 // ---------------------------------------------------------------- route ----
@@ -183,18 +201,13 @@ export function beeline(from: LngLat, to: LngLat): RouteResult {
     timeSec: (Math.hypot(dx, dy) / 1609.34 / 25) * 3600, // ~25 mph urban guess — an estimate, flagged offline
     steps: [],
     offline: true,
+    liveSec: null,
   };
 }
 
-export async function fetchRoute(from: LngLat, to: LngLat): Promise<RouteResult> {
-  const body = {
-    locations: [
-      { lat: from[1], lon: from[0] },
-      { lat: to[1], lon: to[0] },
-    ],
-    costing: "auto",
-    units: "mi",
-  };
+/** Waypoint-routed Valhalla call (2+ locations); the shared core for main routes and alternates. */
+async function valhallaRoute(locations: { lat: number; lon: number }[]): Promise<RouteResult> {
+  const body = { locations, costing: "auto", units: "mi" };
   const res = await fetchTimeout(VALHALLA, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -220,7 +233,112 @@ export async function fetchRoute(from: LngLat, to: LngLat): Promise<RouteResult>
     timeSec: trip?.summary?.time ?? 0,
     steps: stepsFromManeuvers(maneuvers),
     offline: false,
+    liveSec: null,
   };
+}
+
+export async function fetchRoute(from: LngLat, to: LngLat): Promise<RouteResult> {
+  return valhallaRoute([
+    { lat: from[1], lon: from[0] },
+    { lat: to[1], lon: to[0] },
+  ]);
+}
+
+// ---------------------------------------------------------- alternates ----
+// The public Valhalla endpoint ignores `alternates` (verified live: always
+// exactly one leg), so alternates are mined the honest way — corridor probes.
+// A via-point set ~perpendicular off a midpoint pulls Valhalla onto a
+// genuinely different parallel road if one exists; probes that snap back onto
+// the main route get deduped away, and probes that return a huge detour are
+// dropped. Every kept alternate is a real drivable route with a real Valhalla
+// time — the ETA is just static until traffic prices it.
+
+/** Position + local heading (deg from north) at fraction f along a polyline. */
+export function pointAlong(coords: LngLat[], cum: number[], f: number): { pos: LngLat; bearingDeg: number } | null {
+  const total = cum[cum.length - 1];
+  if (total <= 0) return null;
+  const target = total * Math.min(1, Math.max(0, f));
+  let i = 0;
+  while (i < cum.length - 1 && cum[i] < target) i++;
+  const a = coords[Math.max(0, i - 1)];
+  const b = coords[Math.min(coords.length - 1, i + 1)];
+  const dx = (b[0] - a[0]) * 111_320 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+  const dy = (b[1] - a[1]) * 111_320;
+  return { pos: coords[i], bearingDeg: (Math.atan2(dx, dy) * 180) / Math.PI };
+}
+
+/** Move a point `m` metres along the left (+) / right (−) normal of a heading. */
+function offsetPerp(pos: LngLat, bearingDeg: number, m: number): LngLat {
+  const a = ((bearingDeg + (m >= 0 ? 90 : -90)) * Math.PI) / 180;
+  const d = Math.abs(m);
+  const lon = pos[0] + (Math.sin(a) * d) / (111_320 * Math.cos((pos[1] * Math.PI) / 180));
+  const lat = pos[1] + (Math.cos(a) * d) / 111_320;
+  return [lon, lat];
+}
+
+/** Fraction of b's sampled vertices sitting within tolM of a's polyline —
+ * ~1 means b is the same road, just re-encoded (a probe that snapped back). */
+function coincidentFrac(a: LngLat[], b: LngLat[], tolM = 60): number {
+  const aStep = Math.max(1, Math.floor(a.length / 120));
+  const bStep = Math.max(1, Math.floor(b.length / 36));
+  const tol2 = tolM * tolM;
+  let hit = 0;
+  let seen = 0;
+  for (let j = 0; j < b.length; j += bStep) {
+    seen++;
+    const p = b[j];
+    let found = false;
+    for (let i = 0; i < a.length; i += aStep) {
+      const dx = (a[i][0] - p[0]) * 111_320 * Math.cos((((a[i][1] + p[1]) / 2) * Math.PI) / 180);
+      const dy = (a[i][1] - p[1]) * 111_320;
+      if (dx * dx + dy * dy < tol2) {
+        found = true;
+        break;
+      }
+    }
+    if (found) hit++;
+  }
+  return seen ? hit / seen : 0;
+}
+
+export async function fetchRouteAlternates(
+  from: LngLat,
+  to: LngLat,
+  main: RouteResult,
+  max = 2,
+): Promise<RouteResult[]> {
+  if (main.offline || main.coords.length < 2) return [];
+  const cum = cumulativeMeters(main.coords);
+  const total = cum[cum.length - 1];
+  if (total < 1500) return []; // short hops don't have honest alternates
+  const offset = Math.min(1600, Math.max(700, total * 0.15));
+  const probes: LngLat[] = [];
+  for (const f of [0.5, 0.32, 0.68]) {
+    const p = pointAlong(main.coords, cum, f);
+    if (!p) continue;
+    probes.push(offsetPerp(p.pos, p.bearingDeg, +offset));
+    probes.push(offsetPerp(p.pos, p.bearingDeg, -offset));
+  }
+  const alts: RouteResult[] = [];
+  for (const via of probes) {
+    if (alts.length >= max) break;
+    let r: RouteResult;
+    try {
+      r = await valhallaRoute([
+        { lat: from[1], lon: from[0] },
+        { lat: via[1], lon: via[0] },
+        { lat: to[1], lon: to[0] },
+      ]);
+    } catch {
+      continue; // one probe failing must not sink the rest
+    }
+    if (r.coords.length < 2) continue;
+    if (r.timeSec > main.timeSec * 2 || r.lengthMi > main.lengthMi * 1.9) continue; // a detour, not an alternate
+    if (coincidentFrac(main.coords, r.coords) > 0.8) continue; // snapped back onto the main route
+    if (alts.some((o) => coincidentFrac(o.coords, r.coords) > 0.8)) continue; // same as another kept alt
+    alts.push(r);
+  }
+  return alts;
 }
 
 // ------------------------------------------------------------- progress ----
@@ -258,4 +376,37 @@ export function routeProgress(coords: LngLat[], cum: number[], pos: LngLat): num
     }
   }
   return Math.min(1, cum[bestI] / total);
+}
+
+/**
+ * Meters the position sits off the polyline — true point-to-segment distance
+ * (routeProgress only projects onto vertices, which under-reads on long
+ * straight legs). Drives the wrong-turn detector; same local-plane math.
+ */
+export function offRouteMeters(coords: LngLat[], pos: LngLat): number {
+  const toXY = (p: LngLat): [number, number] => [
+    (p[0] - pos[0]) * 111_320 * Math.cos((pos[1] * Math.PI) / 180),
+    (p[1] - pos[1]) * 111_320,
+  ];
+  // the position itself projects to the origin of this local plane
+  let best = Infinity;
+  for (let i = 1; i < coords.length; i++) {
+    const [ax, ay] = toXY(coords[i - 1]);
+    const [bx, by] = toXY(coords[i]);
+    const ex = bx - ax;
+    const ey = by - ay;
+    const len2 = ex * ex + ey * ey;
+    let t = 0;
+    if (len2 > 0) t = Math.max(0, Math.min(1, -(ax * ex + ay * ey) / len2));
+    const d = Math.hypot(ax + t * ex, ay + t * ey);
+    if (d < best) best = d;
+  }
+  return best === Infinity ? 0 : best;
+}
+
+/** Compass heading (rad, clockwise from north) from a to b — for re-aiming the demo fix. */
+export function bearingRad(a: LngLat, b: LngLat): number {
+  const dy = (b[1] - a[1]) * 111_320;
+  const dx = (b[0] - a[0]) * 111_320 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+  return (Math.atan2(dx, dy) + Math.PI * 2) % (Math.PI * 2);
 }

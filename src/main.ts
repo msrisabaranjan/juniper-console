@@ -4,7 +4,7 @@ import "./styles/chrome.css";
 import "./styles/pages.css";
 
 import { getState, subscribe } from "./state";
-import { initStatusbar, initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
+import { initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
 import { initVehiclePage } from "./pages/vehicle";
 import { initDashPage } from "./pages/dash";
 import { initNavigatePage } from "./pages/navigate";
@@ -12,31 +12,14 @@ import { cancelFx } from "./ui/fx";
 import { initCarScene } from "./three/carScene";
 
 // ---------- chrome ----------
-initStatusbar();
 initNavbar();
 initClimate();
 initVolume();
 initMedia();
 const vehiclePage = initVehiclePage();
 
-// ---------- status-center ticker ----------
-const statusCenter = document.getElementById("status-center")!;
-function renderStatusCenter(): void {
-  const s = getState();
-  if (s.page === "dash") {
-    statusCenter.textContent = dashPage.ticker();
-    return;
-  }
-  if (s.page === "navigate") {
-    statusCenter.textContent = navPage.ticker();
-    return;
-  }
-  const mode = s.driveMode.toUpperCase();
-  statusCenter.textContent = `MODEL Y JUNIPER PERFORMANCE · ${mode} · ${Math.round((s.battery / 100) * 275)} MI`;
-}
-const dashPage = initDashPage(renderStatusCenter);
-const navPage = initNavigatePage(renderStatusCenter);
-renderStatusCenter();
+const dashPage = initDashPage();
+const navPage = initNavigatePage();
 
 // ---------- 3D stage ----------
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
@@ -68,12 +51,11 @@ subscribe((s, prev) => {
   }
   if (s.driveMode !== prev.driveMode) {
     scene.setDriveMode(s.driveMode);
-    renderStatusCenter();
   }
   if (s.page !== prev.page) {
+    document.documentElement.dataset.page = s.page; // chrome CSS swaps the context strip
     scene.setPage(s.page);
     syncMiniView();
-    renderStatusCenter();
     if (s.page === "vehicle") vehiclePage.playIntro();
     else if (s.page === "dash") dashPage.playIntro();
     else if (s.page === "navigate") navPage.playIntro();
@@ -85,6 +67,7 @@ subscribe((s, prev) => {
 });
 
 // initial scene sync
+document.documentElement.dataset.page = getState().page;
 scene.setAccent(getState().accent);
 scene.setLights(getState().beams, getState().taillights);
 scene.setDriveMode(getState().driveMode);

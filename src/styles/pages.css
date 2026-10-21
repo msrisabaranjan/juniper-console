@@ -791,7 +791,7 @@
   color: var(--text-faint);
 }
 
-/* quick actions — Navigate / Home / Work, floating in the map like the video */
+/* quick actions — search launcher, floating in the map like the video */
 .nav-quick {
   position: absolute;
   bottom: var(--sp-4);
@@ -905,6 +905,216 @@
   justify-content: center;
 }
 
+/* GO — the preview→drive commit switch; fixed traffic-light green, deliberately
+   outside the accent palette so it always reads as "the thing you press" */
+.nav-go {
+  display: block;
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid rgb(var(--go) / 0.75);
+  background: rgb(22 163 74 / 0.82);
+  color: #05130b;
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em; /* balances the trailing letter-space so GO centers */
+  cursor: pointer;
+  box-shadow: 0 0 14px rgb(var(--go) / 0.35);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.nav-go:hover {
+  background: rgb(var(--go-deep) / 0.95);
+  box-shadow: 0 0 20px rgb(var(--go) / 0.55);
+}
+
+/* drive phase (after GO): the planning chrome peels away — search bar, quick
+   row, GO and the whole center card step out; the maneuver prompt + bottom
+   strip carry the drive. The side rail stays, chase cam on */
+#page-navigate.drive .nav-search,
+#page-navigate.drive .nav-quick,
+#page-navigate.drive .nav-go,
+#page-navigate.drive .nav-route {
+  display: none;
+}
+
+/* maneuver prompt — big amber turn arrow, top-left. Amber (the Dash's
+   drivetrain color) on purpose: it must never blend into the red route line
+   it is steering you along, and it sits far from the green ETA/GO family */
+.nav-maneuver[hidden] {
+  display: none;
+}
+
+.nav-maneuver {
+  position: absolute;
+  left: var(--sp-5);
+  top: var(--sp-5);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  border: 1px solid rgb(var(--amber) / 0.5);
+  background: rgb(0 0 0 / 0.82);
+  padding: var(--sp-3) var(--sp-5);
+}
+
+.nav-maneuver-glyph {
+  display: inline-flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--amber));
+  filter: drop-shadow(0 0 6px rgb(var(--amber) / 0.8))
+    drop-shadow(0 0 18px rgb(var(--amber) / 0.35));
+}
+
+.nav-maneuver-glyph svg {
+  width: 48px;
+  height: 48px;
+}
+
+.nav-maneuver-text {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.06em;
+  color: rgb(var(--amber));
+  text-shadow: 0 0 10px rgb(var(--amber) / 0.4);
+}
+
+/* alternate routes — tappable time-comparison chips under the ETA; ALT chips
+   mirror the ghosted steel polylines on the map, the SEL chip is route blue */
+.nav-alts[hidden] {
+  display: none;
+}
+
+.nav-alts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.nav-chip {
+  border: 1px solid var(--line-soft);
+  background: rgb(0 0 0 / 0.55);
+  color: rgb(150 163 184 / 0.9);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  padding: var(--sp-1) var(--sp-2);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.nav-chip:not(.on):hover {
+  background: rgb(148 163 184 / 0.14);
+  color: rgb(203 213 225);
+}
+
+.nav-chip.on {
+  border-color: rgb(65 105 225 / 0.8);
+  color: rgb(190 210 255);
+  background: rgb(65 105 225 / 0.14);
+  box-shadow: 0 0 8px rgb(65 105 225 / 0.4);
+  cursor: default;
+}
+
+/* TRAFFIC — icon-only control on a right-edge rail; the corner dot carries
+   the state (grey OFF / amber NO KEY / green LIVE), words ride aria + title */
+.nav-rail {
+  position: absolute;
+  right: var(--sp-4);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.nav-rail-btn {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.72);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.nav-rail-btn:hover {
+  background: rgb(var(--accent-ghost));
+  color: var(--text);
+}
+
+#nav-traffic[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--line-strong);
+  box-shadow: var(--glow-soft);
+}
+
+.rail-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(148 163 184 / 0.45);
+}
+
+.rail-dot[data-state="nokey"] {
+  background: rgb(255 179 71);
+  box-shadow: 0 0 6px rgb(255 179 71 / 0.9);
+}
+
+.rail-dot[data-state="live"] {
+  background: rgb(122 211 143);
+  box-shadow: 0 0 6px rgb(122 211 143 / 0.9);
+}
+
+/* one-line paste field for the optional TomTom key (stored in localStorage,
+   never in git); anchors to the left of the right-edge traffic rail */
+.nav-key[hidden] {
+  display: none;
+}
+
+.nav-key {
+  position: absolute;
+  right: calc(var(--sp-4) + 60px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.88);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+#nav-tt-key {
+  width: min(320px, 40vw);
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+}
+
+#nav-tt-key::placeholder {
+  color: var(--text-faint);
+  letter-spacing: 0.18em;
+}
+
 /* status line — mono micro-caps pinned above the quick actions */
 .nav-status {
   position: absolute;
@@ -980,15 +1190,37 @@
 
 @media (max-width: 900px) {
   .nav-route {
-    left: 50%;
+    left: var(--sp-4);
+    right: auto;
     top: auto;
     bottom: calc(var(--sp-4) + 116px);
-    transform: translateX(-50%);
-    width: min(340px, 92vw);
+    transform: none;
+    width: min(300px, 62vw);
   }
 
   .nav-status {
     bottom: calc(var(--sp-4) + 104px);
+  }
+
+  .nav-maneuver {
+    left: var(--sp-4);
+    top: var(--sp-4);
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
+  }
+
+  .nav-maneuver-glyph {
+    width: 48px;
+    height: 48px;
+  }
+
+  .nav-maneuver-glyph svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .nav-maneuver-text {
+    font-size: var(--fs-md);
   }
 }
 
