@@ -117,6 +117,61 @@
           </div>
         </section>
 
+        <section class="page" id="page-navigate" aria-label="Navigate">
+          <div class="nav-map-wrap" id="nav-map-wrap"></div>
+
+          <div class="nav-search">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.4" />
+              <line x1="10.5" y1="10.5" x2="15" y2="15" stroke="currentColor" stroke-width="1.4" />
+            </svg>
+            <input id="nav-q" type="text" placeholder="SEARCH DESTINATION" autocomplete="off" spellcheck="false" aria-label="Search destination" />
+            <button class="nav-btn" id="nav-go" type="button">GO</button>
+          </div>
+          <ul class="nav-results" id="nav-results" aria-label="Search results" hidden></ul>
+
+          <div class="nav-route" id="nav-card" hidden>
+            <div class="nav-step">
+              <span class="nav-step-glyph" id="nav-step-glyph"></span>
+              <span class="nav-step-text" id="nav-step-text">—</span>
+            </div>
+            <div class="nav-eta">
+              <div class="nav-eta-label">TO <b id="nav-dest">DESTINATION</b></div>
+              <div class="nav-eta-row">
+                <b id="nav-dist">—</b>
+                <span id="nav-time">—</span>
+                <span class="nav-arrive">ARR <span id="nav-arrive">—</span></span>
+              </div>
+            </div>
+            <div class="nav-route-actions">
+              <button class="nav-btn" id="nav-overview" type="button">OVERVIEW</button>
+              <button class="nav-btn" id="nav-clear" type="button">CLEAR</button>
+            </div>
+          </div>
+
+          <div class="nav-quick">
+            <button class="nav-btn" id="nav-search-btn" type="button">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.4" />
+                <line x1="10.5" y1="10.5" x2="15" y2="15" stroke="currentColor" stroke-width="1.4" />
+              </svg><b>NAVIGATE</b>
+            </button>
+            <button class="nav-btn" id="nav-home" type="button">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M1.5 7.5 L8 1.5 L14.5 7.5 M3.5 6.5 V14.5 H12.5 V6.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+              </svg><b>HOME</b>
+            </button>
+            <button class="nav-btn" id="nav-work" type="button">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <rect x="1.5" y="4.5" width="13" height="10" fill="none" stroke="currentColor" stroke-width="1.4" />
+                <path d="M5.5 4.5 V2.5 H10.5 V4.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+              </svg><b>WORK</b>
+            </button>
+          </div>
+
+          <div class="nav-status" id="nav-status">GPS OFFLINE</div>
+        </section>
+
         <section class="page" id="page-soon" aria-label="Coming soon">
           <div class="soon-card">
             <div class="soon-title" id="soon-title">CLIMATE</div>
