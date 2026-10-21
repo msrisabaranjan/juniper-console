@@ -307,17 +307,10 @@
   gap: var(--sp-4);
 }
 
-/* main area: big map banner on top, panel rows underneath */
+/* main area: big map banner on top, TRIP panel underneath (full width) */
 .dash-main {
   display: grid;
   grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: var(--sp-4);
-  min-height: 0;
-}
-
-.dash-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
   gap: var(--sp-4);
   min-height: 0;
 }
@@ -372,6 +365,43 @@
   transition: width var(--dur-fast) linear;
 }
 
+/* SPEED bar: the color ramp spans the full 0..top-speed track and is clipped
+   to the current speed (JS sets --spd), so the fill's edge color marks the
+   speed band. --peak drives the drive-peak tick. */
+.dash-speed-ramp {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--accent) / 0.35),
+    rgb(var(--accent) / 0.9) 70%,
+    #fff 100%
+  );
+  box-shadow: var(--glow-soft);
+  clip-path: inset(0 calc(100% - var(--spd, 0%)) 0 0);
+  transition: clip-path var(--dur-fast) linear;
+}
+
+.dash-bar-peak {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: var(--peak, 0%);
+  width: 2px;
+  background: var(--text);
+  box-shadow: 0 0 6px rgb(var(--accent) / 0.8);
+  opacity: 0;
+  transition: left var(--dur-fast) linear, opacity var(--dur-fast);
+}
+
+/* dim "PK nn" drive-peak figure sharing the speed readout's line */
+.dash-peak-val {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+}
+
 .dash-readout,
 .dash-value {
   font-family: var(--font-mono);
@@ -390,13 +420,14 @@
   flex-direction: column;
 }
 
-/* the stacked left column is tight on height — keep those panels compact:
-   the big readout shares the title line, the bar gets the row to itself */
-.dash-lower .dash-panel {
+/* the compact tiles under the G-meter keep tight rows: the big readout
+   shares the title line, the bar gets the row to itself */
+.dash-right .dash-panel {
+  flex: 0 0 auto;
   padding: var(--sp-2) var(--sp-3);
 }
 
-.dash-lower .dash-panel:has(.dash-bar) {
+.dash-right .dash-panel:has(.dash-bar) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
@@ -406,27 +437,21 @@
   align-content: center;
 }
 
-.dash-lower .dash-title {
+.dash-right .dash-panel:not(.dash-gpanel) .dash-title {
   grid-area: title;
   margin-bottom: 0;
 }
 
-.dash-lower .dash-bar {
+.dash-right .dash-bar {
   grid-area: bar;
   margin: var(--sp-2) 0 0;
 }
 
-.dash-lower .dash-readout,
-.dash-lower .dash-value {
+.dash-right .dash-readout,
+.dash-right .dash-value {
   grid-area: value;
   align-self: center;
   font-size: var(--fs-md);
-}
-
-/* the compact panels share the left column evenly */
-.dash-lower .dash-panel {
-  flex: 1;
-  min-height: 0;
 }
 
 /* TRIP keeps breathing room under its title */
@@ -434,7 +459,7 @@
   margin-bottom: var(--sp-2);
 }
 
-/* G-meter lives in the right column and soaks up its spare height */
+/* G-meter tops the right column and soaks up its spare height */
 .dash-gpanel {
   flex: 1;
   min-height: 0;
@@ -456,6 +481,7 @@
   letter-spacing: 0.18em;
   color: var(--text-dim);
   text-align: center;
+  white-space: nowrap; /* keeps "LAT / LON / G" on one line */
 }
 
 .gsep {
@@ -463,7 +489,13 @@
   color: var(--text-faint);
 }
 
-/* session trip stats — alone in its column, so let the rows breathe */
+/* total felt G lights up accent-hot once the tires break 1 g */
+.dash-g-readout .g-hot {
+  color: rgb(var(--accent));
+  text-shadow: 0 0 8px rgb(var(--accent) / 0.8);
+}
+
+/* session trip stats — full-width under the map, so let the rows breathe */
 .dash-session {
   flex: 1;
   min-height: 0;
@@ -601,21 +633,6 @@
   color: var(--text-dim);
 }
 
-/* mini aerial window: transparent so the scissored 3D render shows through */
-.dash-view {
-  flex: 0 0 auto;
-  height: 300px;
-  display: flex;
-  flex-direction: column;
-  background: transparent;
-}
-
-.dash-view-inner {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
 /* dynamics mirror rows */
 .dash-row {
   display: flex;
@@ -656,14 +673,6 @@
 
   .dash-main {
     grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
-  }
-
-  .dash-lower {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
-  }
-
-  .dash-view {
-    height: 240px;
   }
 }
 

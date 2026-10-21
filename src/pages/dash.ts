@@ -11,8 +11,10 @@ import { createWeatherFeed } from "../ui/weather";
  * telemetry note in the README) and the panels redraw on requestAnimationFrame:
  * the filter's peek() extrapolates the physics model between ~1 Hz GPS fixes,
  * so the gauges run at 60 FPS while data lands once per second.
- * BRAKE / ACCEL / REGEN are derived from filtered longitudinal G while a live
- * fix is held and park at NO SIGNAL otherwise. Map, trip stats and exterior
+ * BRAKE / ACCEL are derived from filtered longitudinal G while a live
+ * fix is held and park at NO SIGNAL otherwise; SPEED tracks GPS ground
+ * speed against the Juniper AWD top speed, with a tick marking the
+ * current drive's peak. Map, trip stats and exterior
  * temp follow the same real sources (GPS + Open-Meteo) — offline they freeze
  * and dash.
  */
@@ -33,15 +35,12 @@ function fmtClock(sec: number): string {
 }
 
 const MPH = 2.23694; // m/s -> mph
-const G = 9.81; // m/s² per g
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 // pedal-envelope assumptions for deriving pedal % from filtered lon G
 const ACCEL_G_FULL = 1.0; // +1.0 g reads as 100 % throttle
 const BRAKE_G_FULL = 1.2; // −1.2 g reads as 100 % brake
-const REGEN_G_FULL = 0.35; // decel up to this is regen doing the work
-const REGEN_KW_MAX = 120; // gauge scale
-const VEH_MASS = 2000; // ~kg, Model Y Performance, for the regen power estimate
+const TOP_SPEED_MPH = 125; // Model Y Juniper AWD top speed — full SPEED bar
 
 export interface DashPage {
   playIntro(): void;
@@ -53,8 +52,10 @@ export function initDashPage(): DashPage {
     brakeVal: $("dash-brake-val"),
     accelFill: $("dash-accel-fill"),
     accelVal: $("dash-accel-val"),
-    regenFill: $("dash-regen-fill"),
-    regenVal: $("dash-regen-val"),
+    speedBar: $("dash-speed-bar"),
+    speedPeak: $("dash-speed-peak"),
+    speedVal: $("dash-speed-val"),
+    speedPeakVal: $("dash-speed-peak-val"),
     extFill: $("dash-exttemp-fill"),
     extVal: $("dash-exttemp-val"),
     gsvg: $("dash-gsvg"),
@@ -62,6 +63,7 @@ export function initDashPage(): DashPage {
     gtrail: $("dash-gtrail"),
     gLat: $("dash-g-lat"),
     gLon: $("dash-g-lon"),
+    gTotal: $("dash-g-total"),
     mapSitting: $("dash-map-sitting"),
     mapSub: $("dash-map-sub"),
     tripDist: $("dash-trip-dist"),
@@ -86,6 +88,7 @@ export function initDashPage(): DashPage {
 
   const trail: [number, number][] = [];
   let lastTrailAt = 0;
+  let peakMph = 0; // fastest speed this drive; resets when the fix drops
 
   const gScale = 10; // 1g = 10 svg units (ring at 14 ≈ 1.4g)
 
@@ -95,26 +98,33 @@ export function initDashPage(): DashPage {
       const decel = Math.max(0, -snap.gy);
       const accelPct = clamp01(snap.gy / ACCEL_G_FULL) * 100;
       const brakePct = clamp01(decel / BRAKE_G_FULL) * 100;
-      // light deceleration is regen braking; past ~0.35 g the friction brake
-      // fades in and regen tapers off toward zero
-      const regenFrac =
-        Math.min(1, decel / REGEN_G_FULL) * (1 - clamp01((decel - REGEN_G_FULL) / 0.4));
-      const regenKw =
-        Math.min(REGEN_KW_MAX, (VEH_MASS * G * decel * snap.speed) / 1000) * regenFrac;
 
       el.brakeFill.style.width = `${brakePct}%`;
       el.brakeVal.textContent = `${Math.round(brakePct)}%`;
       el.accelFill.style.width = `${accelPct}%`;
       el.accelVal.textContent = `${Math.round(accelPct)}%`;
-      el.regenFill.style.width = `${(regenKw / REGEN_KW_MAX) * 100}%`;
-      el.regenVal.textContent = `${Math.round(regenKw)} kW`;
+
+      // speed: GPS ground speed on the 0..125 ramp, with the clip edge of the
+      // color ramp telling the speed band by its color; the tick marks the
+      // peak reached so far this drive
+      const mph = snap.speed * MPH;
+      if (mph > peakMph) peakMph = mph;
+      el.speedBar.style.setProperty("--spd", `${clamp01(mph / TOP_SPEED_MPH) * 100}%`);
+      el.speedBar.style.setProperty("--peak", `${clamp01(peakMph / TOP_SPEED_MPH) * 100}%`);
+      el.speedPeak.style.opacity = peakMph >= 1 ? "1" : "0";
+      el.speedVal.textContent = `${Math.round(mph)} MPH`;
+      el.speedPeakVal.textContent = peakMph >= 1 ? `PK ${Math.round(peakMph)}` : "";
     } else {
       el.brakeFill.style.width = "0%";
       el.brakeVal.textContent = "—";
       el.accelFill.style.width = "0%";
       el.accelVal.textContent = "—";
-      el.regenFill.style.width = "0%";
-      el.regenVal.textContent = "—";
+      el.speedBar.style.setProperty("--spd", "0%");
+      el.speedBar.style.setProperty("--peak", "0%");
+      el.speedPeak.style.opacity = "0";
+      el.speedVal.textContent = "—";
+      el.speedPeakVal.textContent = "";
+      peakMph = 0; // fix lost — drive's over; the next live fix opens a new one
     }
 
     const extT = weather.tempF();
@@ -137,6 +147,10 @@ export function initDashPage(): DashPage {
     el.gtrail.setAttribute("points", trail.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
     el.gLat.textContent = snap.gLive ? snap.gx.toFixed(2) : "—";
     el.gLon.textContent = snap.gLive ? snap.gy.toFixed(2) : "—";
+    // total felt G: length of the (lat, lon) vector — what the tires are doing
+    const totalG = Math.hypot(snap.gx, snap.gy);
+    el.gTotal.textContent = snap.gLive ? totalG.toFixed(2) : "—";
+    el.gTotal.classList.toggle("g-hot", snap.gLive && totalG >= 1);
 
     // map readout: how long the car has been sitting in this spot
     el.mapSitting.textContent = fmtClock(snap.sittingSec);

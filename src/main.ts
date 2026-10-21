@@ -27,18 +27,6 @@ const mediaPage = initMediaPage();
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
 const scene = initCarScene(canvas);
 
-// Dash mini aerial view: keep the scissor rect glued to the panel's window
-const dashViewInner = document.getElementById("dash-view-inner")!;
-function syncMiniView(): void {
-  if (getState().page !== "dash") {
-    scene.setMiniView(null);
-    return;
-  }
-  const r = dashViewInner.getBoundingClientRect();
-  scene.setMiniView({ x: r.x, y: r.y, w: r.width, h: r.height });
-}
-window.addEventListener("resize", syncMiniView);
-
 // ---------- react to state ----------
 subscribe((s, prev) => {
   if (s.accent !== prev.accent) {
@@ -57,7 +45,6 @@ subscribe((s, prev) => {
   if (s.page !== prev.page) {
     document.documentElement.dataset.page = s.page; // chrome CSS swaps the context strip
     scene.setPage(s.page);
-    syncMiniView();
     if (s.page === "vehicle") vehiclePage.playIntro();
     else if (s.page === "dash") dashPage.playIntro();
     else if (s.page === "navigate") navPage.playIntro();

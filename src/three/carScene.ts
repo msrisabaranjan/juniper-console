@@ -9,12 +9,6 @@ export interface CarScene {
   setXray(mode: XrayMode): void;
   setDriveMode(mode: DriveMode): void;
   setPage(page: PageId): void;
-  /**
-   * Dash mode: render the scene as a mini aerial view inside this screen
-   * rect (CSS px, top-left origin) instead of full-screen. null restores
-   * the normal full-viewport render.
-   */
-  setMiniView(rect: { x: number; y: number; w: number; h: number } | null): void;
 }
 
 const RED = new THREE.Color(1.0, 0.18, 0.18);
@@ -37,7 +31,7 @@ const VIEW_BY_PAGE: Record<PageId, number> = {
   home: Math.PI + 1.75, // front-left: camera sits at (5.6,·,6.4), so pure
   // driver's-side profile is PI+0.72 — rotate ~59deg past it toward the nose
   vehicle: -0.55 + Math.PI, // rear 3/4 behind the settings panel
-  dash: Math.PI / 2, // nose up under the aerial mini-view camera
+  dash: Math.PI / 2, // stage blacks out on the dash; pose only eases on exit
   media: Math.PI + 1.75,
   navigate: Math.PI + 1.75,
 };
@@ -50,8 +44,8 @@ const VIEW_BY_PAGE: Record<PageId, number> = {
 const CAM_BY_PAGE: Record<PageId, { y: number; aimY: number }> = {
   home: { y: 1.15, aimY: 0.65 },
   vehicle: { y: 2.45, aimY: 0.75 },
-  dash: { y: 1.15, aimY: 0.65 }, // main camera idles low; it's hidden behind
-  // the dash backdrop while the aerial camera draws the mini view
+  dash: { y: 1.15, aimY: 0.65 }, // main camera idles low; the canvas is black
+  // on the dash page (tick's blackout frames)
   media: { y: 1.15, aimY: 0.65 },
   navigate: { y: 1.15, aimY: 0.65 },
 };
@@ -294,7 +288,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 1);
-  renderer.autoClear = false; // tick() clears explicitly (mini view scissoring)
+  renderer.autoClear = false; // tick() clears explicitly (dash blackout frames)
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000000, 0.052);
@@ -308,14 +302,8 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
   camera.position.set(5.6, CAM_BY_PAGE.home.y, 6.4);
   camera.lookAt(0, 0.75, 0);
 
-  // Dash mini view: near-top-down camera with a slight tilt so the car still
-  // reads 3D. Rendered into a scissored corner rect (see setMiniView).
-  const aerialCam = new THREE.PerspectiveCamera(35, 1.3, 0.1, 80);
-  aerialCam.position.set(0, 10.5, 3.2);
-  aerialCam.lookAt(0, 0.1, 0);
-
   if (import.meta.env.DEV) {
-    (window as unknown as Record<string, unknown>).__stage = { scene, camera, renderer, aerialCam };
+    (window as unknown as Record<string, unknown>).__stage = { scene, camera, renderer };
   }
 
   // ---- lights (for the glossy body; emissives carry the rest) ----
@@ -646,7 +634,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
   let dimTarget = 1; // wireframe HUD dims the solid body to a blueprint base
   let xray = 0;
   let xrayTarget = 0; // 1 = body ghosted to a see-through shell
-  let miniBox: { x: number; y: number; w: number; h: number } | null = null;
+  let blackout = false; // dash page: clear to black, don't draw the car
 
   // ---- resize ----
   const onResize = () => {
@@ -710,26 +698,8 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
       }
     }
 
-    if (miniBox) {
-      // Dash: black out the whole canvas, then draw the aerial view into
-      // just the mini panel's rect (three's scissor origin is bottom-left).
-      const H = window.innerHeight;
-      const { x, y, w, h } = miniBox;
-      renderer.setScissorTest(false);
-      renderer.setViewport(0, 0, window.innerWidth, H);
-      renderer.clear();
-      renderer.setScissor(x, H - y - h, w, h);
-      renderer.setViewport(x, H - y - h, w, h);
-      renderer.setScissorTest(true);
-      aerialCam.aspect = w / h;
-      aerialCam.updateProjectionMatrix();
-      renderer.render(scene, aerialCam);
-      renderer.setScissorTest(false);
-      renderer.setViewport(0, 0, window.innerWidth, H);
-    } else {
-      renderer.clear();
-      renderer.render(scene, camera);
-    }
+    renderer.clear();
+    if (!blackout) renderer.render(scene, camera);
   };
   requestAnimationFrame(tick);
 
@@ -771,9 +741,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
       camAimYTarget = CAM_BY_PAGE[page].aimY;
       velocity = 0;
       posing = true;
-    },
-    setMiniView(rect) {
-      miniBox = rect;
+      blackout = page === "dash";
     },
   };
 }

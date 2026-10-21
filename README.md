@@ -23,8 +23,9 @@ browser (1920×1200 landscape, touch-first).
   - *Display* — Appearance (Crimson ⇄ Chalk accent switch), Brightness
   - *Charging* — charge-limit slider + live range bar
 - **Dash (Track Mode)** — real-data telemetry screen: MapLibre map with GPS
-  follow, G-meter with trail, trip stats, exterior temp, brake/accel/regen
-  pedals derived from filtered longitudinal G. Everything parks at NO SIGNAL
+  follow, G-meter with trail, trip stats, exterior temp, brake/accel
+  pedals derived from filtered longitudinal G, and a SPEED bar on the
+  0..125 mph Juniper AWD ramp with a drive-peak tick. Everything parks at NO SIGNAL
   when there is no real source.
 - **Navigate** — full-bleed 3D wireframe nav in the Roadster's idiom: black void,
   line-art streets, extruded ghost building blocks. Two phases, one map:
@@ -81,8 +82,10 @@ degraded fixes (tunnels, tree cover) coast through on the physics model.
 Body-frame G is the filtered acceleration projected onto the travel direction;
 readers extrapolate the filter (`peek`) on `requestAnimationFrame`, so the
 gauges run at 60 FPS between ~1 Hz fixes. devicemotion outranks GPS-derived G
-where the platform offers it (rare in-car). BRAKE/ACCEL/REGEN pedals and
-regen kW are derived from filtered longitudinal G while live.
+where the platform offers it (rare in-car). BRAKE/ACCEL pedals are derived
+from filtered longitudinal G while live; the SPEED bar follows filtered GPS
+ground speed (0..125 mph, Juniper AWD top speed) and ticks the fastest speed
+reached since the fix last went out.
 
 Not wired (future pipelines): Tesla Fleet Telemetry API (needs a small
 server-side WebSocket proxy + auth — the browser can't hold the private key),
