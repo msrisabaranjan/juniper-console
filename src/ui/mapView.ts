@@ -5,17 +5,22 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { SensorFeed } from "./sensors";
 
 /**
- * DASH map panel — a real map (MapLibre GL + OpenFreeMap vector tiles, no
- * API key) driven by real GPS fixes only.
+ * Shared MapLibre GL harness for the console's live maps (DASH panel and
+ * the NAVIGATE page) — OpenFreeMap vector tiles, no API key, real GPS only.
  *
  * Heading-up camera like the car's native nav: on each fix the map eases to
- * (position, heading, speed-based zoom) while the car arrow stays upright.
+ * (position, heading, speed-based zoom) while the car marker stays upright.
  * Where the car has driven paints behind it as a royal-blue polyline — parked
- * jitter and stale/teleport gaps never draw, they just start a new segment.
+ * jitter and stale/teleport gaps never draw, they just start a new segment
+ * (NAVIGATE turns this off; its overlay is the routed path instead).
  * Dragging pauses following; it eases back after a beat. Before the first
  * fix the map parks on a default location with the readouts showing NO
- * SIGNAL. Style: public/mapstyle.json (dark HUD restyle); road colors follow
- * the UI accent via setAccent().
+ * SIGNAL. Style: public/mapstyle.json (DASH dark HUD) or mapstyle-nav.json
+ * (NAVIGATE wireframe 3D); road colors follow the UI accent via setAccent().
+ *
+ * createMapView() takes an options bag so NAVIGATE can restyle the same
+ * machinery (pitched camera, paper-plane marker, no track) without cloning
+ * any of it; DASH keeps the defaults.
  *
  * maplibre v6 derives its worker URL from the main bundle's URL, which Vite's
  * dep pre-bundling breaks (404 -> tiles never load). Pin the worker to the
@@ -47,6 +52,21 @@ const TRACK_MAX_GAP_MS = 30_000; // stale fixes this long start a new segment
 const TRACK_MAX_JUMP_M = 150; // one implausible hop also starts a new segment
 const TRACK_MAX_POINTS = 1500; // memory cap; oldest points get trimmed
 
+export interface MapViewOptions {
+  /** Style document URL. Defaults to the DASH dark HUD style. */
+  style?: string;
+  /** Camera tilt in degrees held through the heading-up follow eases. */
+  pitch?: number;
+  /** Draw the royal-blue driven path (DASH yes, NAVIGATE no). */
+  track?: boolean;
+  /** Which road layers the accent re-tints (nav keeps minor roads neutral line-art). */
+  accentRoads?: readonly string[];
+  /** "dash" = arrow + parked pulse ring; "nav" = glowing paper-plane kite. */
+  markerVariant?: "dash" | "nav";
+  parkedZoom?: number;
+  highwayZoom?: number;
+}
+
 export interface MapView {
   start(): void;
   stop(): void;
@@ -54,13 +74,21 @@ export interface MapView {
   setAccent(rgb: [number, number, number]): void;
   /** Forget the drawn path (also useful from the __dashmap debug hook). */
   clearTrack(): void;
+  /**
+   * Command the follow camera from outside (NAVIGATE overview toggle).
+   * `lock` suppresses the drag-pause logic while held, so panning around an
+   * overview doesn't snap the camera back after the resume timer.
+   */
+  setFollow(on: boolean, lock?: boolean): void;
+  /** Re-aim the follow camera (e.g. different pitch/zoom for a mode change). */
+  setCamera(pitch: number, zoom: number): void;
   /** Debug/console access to the underlying MapLibre map. */
   getMap(): MLMap;
 }
 
-function speedZoom(ms: number): number {
+function speedZoom(ms: number, parkedZoom: number, highwayZoom: number): number {
   const t = Math.min(1, ms / HIGHWAY_SPEED);
-  return PARKED_ZOOM - (PARKED_ZOOM - HIGHWAY_ZOOM) * t;
+  return parkedZoom - (parkedZoom - highwayZoom) * t;
 }
 
 /** Current UI accent as an [r, g, b] triple, read from the --accent token. */
@@ -72,14 +100,26 @@ function readAccent(): [number, number, number] {
     : [255, 45, 45];
 }
 
-export function createMapView(container: HTMLElement, feed: SensorFeed): MapView {
+export function createMapView(
+  container: HTMLElement,
+  feed: SensorFeed,
+  opts: MapViewOptions = {}
+): MapView {
+  const styleUrl = opts.style ?? "mapstyle.json";
+  const trackEnabled = opts.track ?? true;
+  let parkedZoom = opts.parkedZoom ?? PARKED_ZOOM;
+  const highwayZoom = opts.highwayZoom ?? HIGHWAY_ZOOM;
+  let pitch = opts.pitch ?? 0;
+  const accentRoads = opts.accentRoads ?? ROAD_LAYERS;
+
   let accent = readAccent();
 
   const map = new MLMap({
     container,
-    style: "mapstyle.json",
+    style: styleUrl,
     center: DEFAULT_POS,
-    zoom: PARKED_ZOOM,
+    zoom: parkedZoom,
+    pitch,
     pixelRatio: Math.min(1.5, window.devicePixelRatio || 1), // in-car SoC guard
     renderWorldCopies: false,
     dragRotate: false, // rotation is ours alone (heading-up follow)
@@ -90,24 +130,29 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
 
   map.on("style.load", () => {
     applyAccent();
-    addTrackLayers();
+    if (trackEnabled) addTrackLayers();
   });
 
   function applyAccent(): void {
     const [r, g, b] = accent;
-    for (const id of ROAD_LAYERS) {
+    for (const id of accentRoads) {
       if (!map.getLayer(id)) continue;
-      map.setPaintProperty(id, "line-color", `rgba(${r}, ${g}, ${b}, ${ROAD_ALPHA[id]})`);
+      map.setPaintProperty(id, "line-color", `rgba(${r}, ${g}, ${b}, ${ROAD_ALPHA[id as keyof typeof ROAD_ALPHA] ?? 0.85})`);
     }
   }
 
-  // ---- car marker: upright arrow + parked pulse ring ----
+  // ---- car marker: upright arrow + parked pulse ring (dash) or plane kite (nav) ----
   const markerEl = document.createElement("div");
-  markerEl.className = "map-marker";
-  markerEl.innerHTML = `<svg viewBox="-20 -20 40 40" aria-hidden="true">
-    <circle class="parkring" r="16" fill="none" stroke-width="2"></circle>
-    <path class="carmark" d="M0 -13 L9 11 L0 6.5 L-9 11 Z"></path>
-  </svg>`;
+  markerEl.className = opts.markerVariant === "nav" ? "map-marker nav" : "map-marker";
+  markerEl.innerHTML =
+    opts.markerVariant === "nav"
+      ? `<svg viewBox="-20 -20 40 40" aria-hidden="true">
+          <path class="planemark" d="M0 -17 L7.5 12 L0 6.5 L-7.5 12 Z"></path>
+        </svg>`
+      : `<svg viewBox="-20 -20 40 40" aria-hidden="true">
+          <circle class="parkring" r="16" fill="none" stroke-width="2"></circle>
+          <path class="carmark" d="M0 -13 L9 11 L0 6.5 L-9 11 Z"></path>
+        </svg>`;
   const marker = new Marker({ element: markerEl, rotationAlignment: "viewport", pitchAlignment: "map" })
     .setLngLat(DEFAULT_POS)
     .addTo(map);
@@ -197,12 +242,13 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
 
   // ---- follow / drag state ----
   let following = true;
+  let followLocked = false; // setFollow()'s command beats the drag-resume timer
   let lastDragEnd = 0;
   map.on("dragstart", () => {
-    following = false;
+    if (!followLocked) following = false;
   });
   map.on("dragend", () => {
-    lastDragEnd = performance.now();
+    if (!followLocked) lastDragEnd = performance.now();
   });
 
   let raf: number | undefined;
@@ -218,19 +264,20 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
       // one easeTo per fresh fix; chained ~1s eases read as continuous glide
       if (s.live && s.fixAt !== seenFixAt) {
         seenFixAt = s.fixAt;
-        appendTrack(pos, s.speed);
+        if (trackEnabled) appendTrack(pos, s.speed);
         if (following) {
           map.easeTo({
             center: pos,
             bearing: (s.heading * 180) / Math.PI, // heading-up: travel direction points up
-            zoom: speedZoom(s.speed),
+            zoom: speedZoom(s.speed, parkedZoom, highwayZoom),
+            pitch,
             duration: FOLLOW_EASE_MS,
           });
         }
       }
     }
 
-    if (!following && performance.now() - lastDragEnd > DRAG_RESUME_MS) following = true;
+    if (!following && !followLocked && performance.now() - lastDragEnd > DRAG_RESUME_MS) following = true;
 
     raf = requestAnimationFrame(frame);
   }
@@ -238,7 +285,7 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
   return {
     start() {
       if (raf === undefined) {
-        map.resize(); // panel was display:none until DASH opened
+        map.resize(); // panel was display:none until the page opened
         raf = requestAnimationFrame(frame);
       }
     },
@@ -261,6 +308,14 @@ export function createMapView(container: HTMLElement, feed: SensorFeed): MapView
       trackCount = 0;
       lastTrackAt = 0;
       pushTrack();
+    },
+    setFollow(on, lock = false) {
+      following = on;
+      followLocked = lock;
+    },
+    setCamera(nextPitch, zoom) {
+      pitch = nextPitch;
+      parkedZoom = zoom; // follow-mode zoom target for upcoming eases
     },
     getMap() {
       return map;

@@ -667,6 +667,331 @@
   }
 }
 
+
+/* ---------- navigate (3D wireframe nav, Roadster 1:24 homage) ---------- */
+.nav-map-wrap {
+  position: absolute;
+  inset: 0;
+  /* maplibre stamps position:relative inline on its container, so size must
+     also work in flow: */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.nav-map-wrap .maplibregl-map {
+  position: absolute;
+  inset: 0;
+}
+
+.nav-map-wrap .maplibregl-canvas {
+  touch-action: none;
+}
+
+/* shared HUD button for search / quick actions / route card */
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.72);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.nav-btn:hover {
+  background: rgb(var(--accent-ghost));
+  color: var(--text);
+}
+
+/* destination search bar — top center, floating on the map like the video */
+.nav-search {
+  position: absolute;
+  top: var(--sp-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.78);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text-dim);
+}
+
+#nav-q {
+  width: min(420px, 44vw);
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+#nav-q::placeholder {
+  color: var(--text-faint);
+  letter-spacing: 0.22em;
+}
+
+.nav-results {
+  position: absolute;
+  top: calc(var(--sp-4) + 54px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: min(600px, 84vw);
+  max-height: 40vh;
+  overflow: hidden auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.88);
+}
+
+.nav-results li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+
+.nav-results li:last-child {
+  border-bottom: 0;
+}
+
+.nav-results li:hover {
+  background: rgb(var(--accent-ghost));
+}
+
+.nav-results li b {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+
+.nav-results li span {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* quick actions — Navigate / Home / Work, floating in the map like the video */
+.nav-quick {
+  position: absolute;
+  bottom: var(--sp-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  gap: var(--sp-3);
+}
+
+/* route card — next maneuver + ETA, sits left like a HUD readout */
+.nav-route[hidden] {
+  display: none;
+}
+
+.nav-route {
+  position: absolute;
+  left: var(--sp-5);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 300px;
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.78);
+  padding: var(--sp-4);
+}
+
+.nav-step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.nav-step-glyph {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-soft);
+  color: var(--text);
+  filter: drop-shadow(0 0 4px rgb(var(--accent) / 0.6));
+}
+
+.nav-step-glyph svg {
+  width: 28px;
+  height: 28px;
+}
+
+.nav-step-text {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.1em;
+  color: var(--text);
+}
+
+.nav-eta-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.2em;
+  color: var(--text-faint);
+}
+
+.nav-eta-label b {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.nav-eta-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+#nav-dist {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: rgb(var(--accent));
+  text-shadow: var(--glow);
+}
+
+#nav-time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+
+.nav-arrive {
+  white-space: nowrap;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+}
+
+.nav-route-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.nav-route-actions .nav-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* status line — mono micro-caps pinned above the quick actions */
+.nav-status {
+  position: absolute;
+  bottom: calc(var(--sp-4) + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.26em;
+  color: var(--text-faint);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* nav car marker: glowing paper-plane kite (the video's marker), deliberately
+   oversized vs the DASH car so it reads at a glance on the busy nav map */
+.map-marker.nav {
+  width: 44px;
+  height: 44px;
+}
+
+.map-marker.nav .planemark {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px rgb(var(--accent) / 0.95)) drop-shadow(0 0 16px rgb(var(--accent) / 0.55));
+}
+
+/* destination pin: HUD diamond on a stem — gold while navigating, the same
+   amber the destination block lights up with (navMap dest highlight) */
+.nav-pin {
+  width: 26px;
+  height: 33px;
+  color: rgb(255, 179, 71);
+  filter: drop-shadow(0 0 5px rgb(255 179 71 / 0.8));
+}
+
+.nav-pin svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* no 3D building at the destination (small town, far suburb): the pin itself
+   pulses a gold ring so the arrival point still reads as the live target */
+.nav-pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid rgb(255 179 71 / 0.85);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-pin.nogeo::after {
+  animation: nav-ring-pulse 1.8s ease-out infinite;
+}
+
+@keyframes nav-ring-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@media (max-width: 900px) {
+  .nav-route {
+    left: 50%;
+    top: auto;
+    bottom: calc(var(--sp-4) + 116px);
+    transform: translateX(-50%);
+    width: min(340px, 92vw);
+  }
+
+  .nav-status {
+    bottom: calc(var(--sp-4) + 104px);
+  }
+}
+
 /* ---------- coming soon ---------- */
 .soon-card {
   position: absolute;

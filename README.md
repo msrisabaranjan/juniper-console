@@ -26,14 +26,20 @@ browser (1920×1200 landscape, touch-first).
   follow, G-meter with trail, trip stats, exterior temp, brake/accel/regen
   pedals derived from filtered longitudinal G. Everything parks at NO SIGNAL
   when there is no real source.
-- **Listen / Climate / Navigate** — styled "module offline — arriving in v2" placeholders.
+- **Navigate** — full-bleed 3D wireframe nav in the Roadster's idiom: black void,
+  line-art streets, extruded ghost building blocks, heading-up tilted follow camera.
+  Place search (Nominatim) + turn-by-turn routing (public Valhalla) — free key-less
+  services, and when they are unreachable the map still flies on a dashed beeline
+  with ROUTE OFFLINE in the HUD. Quick actions ⌕ NAVIGATE / ⌂ HOME / ▣ WORK float
+  in the map; the route card shows the next maneuver, distance, minutes and arrival.
+- **Listen / Climate** — styled "module offline — arriving in v2" placeholders.
 
 Global chrome: `P R N D` gear selector, battery %, live clock, left dot-grid dock
 (ride-height up/down), `< HI >` climate pill, media bar with fake playlist, bottom nav.
 
 ## Stack
 
-Vanilla TypeScript + Vite + Three.js. No framework, no runtime deps beyond `three`.
+Vanilla TypeScript + Vite + Three.js + MapLibre GL. No framework.
 Fonts (Chakra Petch, Space Mono) are self-hosted OFL subsets — no CDN needed in the car.
 
 ## Telemetry (DASH)

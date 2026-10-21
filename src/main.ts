@@ -7,6 +7,7 @@ import { getState, subscribe } from "./state";
 import { initStatusbar, initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
 import { initVehiclePage } from "./pages/vehicle";
 import { initDashPage } from "./pages/dash";
+import { initNavigatePage } from "./pages/navigate";
 import { cancelFx } from "./ui/fx";
 import { initCarScene } from "./three/carScene";
 
@@ -26,10 +27,15 @@ function renderStatusCenter(): void {
     statusCenter.textContent = dashPage.ticker();
     return;
   }
+  if (s.page === "navigate") {
+    statusCenter.textContent = navPage.ticker();
+    return;
+  }
   const mode = s.driveMode.toUpperCase();
   statusCenter.textContent = `MODEL Y JUNIPER PERFORMANCE · ${mode} · ${Math.round((s.battery / 100) * 275)} MI`;
 }
 const dashPage = initDashPage(renderStatusCenter);
+const navPage = initNavigatePage(renderStatusCenter);
 renderStatusCenter();
 
 // ---------- 3D stage ----------
@@ -70,6 +76,7 @@ subscribe((s, prev) => {
     renderStatusCenter();
     if (s.page === "vehicle") vehiclePage.playIntro();
     else if (s.page === "dash") dashPage.playIntro();
+    else if (s.page === "navigate") navPage.playIntro();
     else cancelFx(); // drop any half-typed menu animations
   }
   if (s.brightness !== prev.brightness) {

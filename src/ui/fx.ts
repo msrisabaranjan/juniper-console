@@ -46,6 +46,16 @@ export function hideForType(el: HTMLElement): void {
 }
 
 /**
+ * Abandon any pending typewriter chain for this element (bumps its private
+ * token so the next scheduled step drops). Call before writing textContent
+ * directly on an element that a typeIn may still be animating.
+ */
+export function stopTyping(el: HTMLElement): void {
+  el.dataset.fxType = String((Number(el.dataset.fxType) || 0) + 1);
+  el.classList.remove("typing");
+}
+
+/**
  * Typewriter write of an element's text. The full string is cached in
  * data-fx-text on first use so a cancelled run can't truncate the source
  * for the next one. Pass `text` when the label changes between runs
@@ -54,6 +64,8 @@ export function hideForType(el: HTMLElement): void {
 export function typeIn(el: HTMLElement, text?: string, cps = 32): void {
   const full = text ?? el.dataset.fxText ?? (el.dataset.fxText = el.textContent ?? "");
   if (text !== undefined) el.dataset.fxText = text;
+  stopTyping(el); // supersede any chain still typing this element
+  const token = el.dataset.fxType;
   if (reducedMotion) {
     el.textContent = full;
     return;
@@ -61,7 +73,8 @@ export function typeIn(el: HTMLElement, text?: string, cps = 32): void {
   el.classList.add("typing");
   el.textContent = "";
   let i = 0;
-  const step = () => {
+  const step = (): void => {
+    if (el.dataset.fxType !== token) return; // superseded by stopTyping/new typeIn
     el.textContent = full.slice(0, ++i);
     if (i < full.length) schedule(1000 / cps, step);
     else el.classList.remove("typing");
