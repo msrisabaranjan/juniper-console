@@ -1224,6 +1224,459 @@
   }
 }
 
+/* ---------- media (Roadster "Listen" homage, video 1:21) ---------- */
+/* the stage retires on this tab: the page paints its own backdrop and the
+   ambient layer (drifting accent/cool glows + slow dust) lives beneath the
+   content — theme-reactive, like everything else here */
+#page-media {
+  background: radial-gradient(120% 95% at 50% 4%, #11151f 0%, #080a11 55%, #040508 100%);
+  /* on this tab the art carries the color and the HUD type goes neutral
+     white/grey, exactly like the video's Listen screen — retyping just the
+     text tokens cascades it over titles, captions, labels and type-in carets.
+     The accent-red live-track ring on tiles stays on purpose. */
+  --text: rgb(240 242 246);
+  --text-dim: rgb(240 242 246 / 0.66);
+  --text-faint: rgb(240 242 246 / 0.42);
+}
+
+.media-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* sits above the section's own backdrop but below .media-wrap (z 1).
+     NOT -1: the section paints an opaque background, which would bury it */
+  z-index: 0;
+}
+
+.media-ambient::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  background:
+    radial-gradient(26% 30% at 18% 24%, rgb(var(--accent) / 0.5), transparent 62%),
+    radial-gradient(24% 28% at 82% 68%, rgb(120 170 255 / 0.45), transparent 62%),
+    radial-gradient(40% 26% at 50% 108%, rgb(var(--accent) / 0.4), transparent 66%);
+  animation:
+    amb-drift 22s ease-in-out infinite alternate,
+    amb-breathe 13s ease-in-out infinite alternate;
+}
+
+/* aurora sweep: a wide soft beam rotating behind the content, like the
+   lightbar wash across the Roadster stage */
+.media-ambient {
+  isolation: isolate;
+}
+
+.media-ambient i {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 160vmax;
+  height: 160vmax;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 34%,
+    rgb(var(--accent) / 0.1) 42%,
+    rgb(120 170 255 / 0.1) 50%,
+    transparent 58% 100%
+  );
+  animation: amb-aurora 36s linear infinite;
+}
+
+.media-ambient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* two mismatched dust grids drifting at different speeds read organic */
+  background-image:
+    radial-gradient(rgb(255 255 255 / 0.2) 1.2px, transparent 1.8px),
+    radial-gradient(rgb(var(--accent) / 0.26) 1.2px, transparent 1.8px);
+  background-size: 90px 70px, 133px 109px;
+  animation: amb-dust 30s linear infinite;
+}
+
+@keyframes amb-drift {
+  from {
+    transform: translate3d(-5%, -3%, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(6%, 5%, 0) scale(1.22);
+  }
+}
+
+@keyframes amb-breathe {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes amb-aurora {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes amb-dust {
+  to {
+    background-position: 90px 140px, -133px -109px;
+  }
+}
+
+.media-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-6) var(--sp-6);
+  scrollbar-width: none;
+}
+
+.media-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+/* hero: art left, Last Listened text right — floats over the 3D stage */
+.media-hero {
+  align-self: center;
+  display: flex;
+  gap: var(--sp-5);
+  width: min(760px, 100%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(0 0 0 / 0.66);
+  backdrop-filter: blur(5px);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.media-hero-art,
+.m-art {
+  background: var(--art, #101010);
+  background-size: cover;
+}
+
+.media-hero-art {
+  flex: 0 0 auto;
+  width: clamp(140px, 24vh, 210px);
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.media-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+}
+
+.media-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.26em;
+  color: var(--text-faint);
+  margin-bottom: var(--sp-2);
+  min-height: 1.2em;
+}
+
+.media-hero-title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  /* plain lit white like the video's title, not the crimson HUD glow */
+  text-shadow: 0 0 18px rgb(255 255 255 / 0.22);
+}
+
+.media-hero-artist {
+  font-size: var(--fs-lg);
+  color: var(--text-dim);
+  margin-bottom: var(--sp-3);
+}
+
+.media-play-album {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  min-width: 210px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-dim);
+  padding: var(--sp-2) var(--sp-4);
+  transition: background var(--dur-med) var(--ease-out), color var(--dur-med) var(--ease-out);
+}
+
+.media-play-album:hover {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--text);
+}
+
+.media-play-album i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgb(255 255 255 / 0.85), 0 0 18px rgb(255 255 255 / 0.4);
+}
+
+/* rows: horizontal rails with snap + edge fades, like the video */
+.media-sec-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.26em;
+  color: var(--text-dim);
+  margin-bottom: var(--sp-2);
+  min-height: 1.2em;
+}
+
+.media-row {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 4px 2px var(--sp-2);
+  scrollbar-width: none;
+  /* no edge-fade mask: departing covers stack UNDER their neighbor (z + overlap
+     below) instead of dissolving, like the physical card deck in the video */
+}
+
+.media-row::-webkit-scrollbar {
+  display: none;
+}
+
+.m-tile {
+  position: relative; /* edge stack + end-bounce swap z-index per card */
+  flex: 0 0 auto;
+  width: 152px;
+  text-align: left;
+  scroll-snap-align: start;
+  color: inherit;
+}
+
+.m-tile:hover,
+.m-tile:focus-visible {
+  z-index: 5; /* a lifted card pops over its neighbors */
+}
+
+.m-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  transition: transform var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out),
+    box-shadow var(--dur-med) var(--ease-out);
+}
+
+.media-row.wide .m-tile {
+  width: 236px;
+}
+
+.media-row.wide .m-art {
+  aspect-ratio: 16 / 9;
+}
+
+/* hover / focus: lift + bright ring, exactly like the 1:22 tile hover */
+.m-tile:hover .m-art,
+.m-tile:focus-visible .m-art {
+  transform: translateY(-4px);
+  border-color: rgb(255 255 255 / 0.55);
+  box-shadow: -14px 0 20px rgb(0 0 0 / 0.55), 0 8px 22px rgb(0 0 0 / 0.65), 0 0 10px rgb(255 255 255 / 0.12);
+}
+
+.m-tile:focus-visible {
+  outline: none;
+}
+
+.m-name {
+  display: block;
+  margin-top: var(--sp-2);
+  min-height: 1.5em; /* reserve the line: type-in captions can't reflow the row */
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-artist {
+  display: block;
+  min-height: 1.4em;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* stat chip on the art (♥ 1.7K etc.) */
+.m-badge {
+  position: absolute;
+  top: var(--sp-1);
+  left: var(--sp-1);
+  padding: 1px 6px;
+  background: rgb(0 0 0 / 0.62);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgb(235 235 235 / 0.92);
+}
+
+/* mini equalizer over the art: sleeps, wakes on hover — and never sleeps
+   on the tile that's actually playing in the strip */
+.m-eq {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  opacity: 0;
+  transition: opacity var(--dur-med) var(--ease-out);
+  pointer-events: none;
+}
+
+.m-eq i {
+  width: 3px;
+  height: 100%;
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.5);
+  transform-origin: bottom;
+  animation: m-eq-bar 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.13s);
+  animation-play-state: paused;
+  transform: scaleY(0.25);
+}
+
+.m-tile:hover .m-eq,
+.m-tile:focus-visible .m-eq,
+.m-tile.playing .m-eq {
+  opacity: 0.95;
+}
+
+.m-tile:hover .m-eq i,
+.m-tile:focus-visible .m-eq i,
+.m-tile.playing .m-eq i {
+  animation-play-state: running;
+}
+
+.m-tile.playing .m-art {
+  border-color: var(--line-strong);
+  box-shadow: var(--glow-soft);
+}
+
+/* edge-stack cards (JS tags them .edge near a rail end): the card on top
+   casts a shadow onto the one it's covering — middle cards stay flat */
+.m-tile.edge .m-art {
+  box-shadow: -10px 0 16px rgb(0 0 0 / 0.5);
+}
+
+.m-tile.edge.playing .m-art {
+  box-shadow: -10px 0 16px rgb(0 0 0 / 0.5), var(--glow-soft);
+}
+
+.m-tile.playing .m-name {
+  text-shadow: 0 0 10px rgb(255 255 255 / 0.35);
+}
+
+@keyframes m-eq-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* staggered rise-in, driven by playIntro's schedule() */
+.m-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
+}
+
+.m-in.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* covers don't rise — they glitch-pop in place, video-style: the flicker
+   lives on the art itself while the tile just snaps visible behind it */
+.m-tile.m-in {
+  transform: none;
+  transition: opacity 90ms linear;
+}
+
+/* fill backwards only: after the flicker releases, normal rules (hover lift) own .m-art again */
+.m-tile.in .m-art,
+.media-hero-art.in {
+  animation: fx-tile-glitch 0.24s steps(2, jump-none) backwards;
+}
+
+@keyframes fx-tile-glitch {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 0 66% 0);
+    transform: translateX(-4px);
+  }
+  20% {
+    opacity: 1;
+    clip-path: inset(30% 0 18% 0);
+    transform: translateX(3px);
+  }
+  45% {
+    opacity: 0.25;
+    clip-path: inset(72% 0 0 0);
+    transform: translateX(-3px);
+  }
+  65% {
+    opacity: 1;
+    clip-path: inset(8% 0 52% 0);
+    transform: translateX(2px);
+  }
+  85% {
+    opacity: 0.7;
+    clip-path: inset(40% 0 30% 0);
+    transform: translateX(-1px);
+  }
+  100% {
+    opacity: 1;
+    clip-path: none;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-in {
+    transition: none;
+  }
+  .m-eq i {
+    animation-duration: 2s;
+  }
+  .media-ambient::before,
+  .media-ambient::after,
+  .media-ambient i {
+    animation: none;
+  }
+  .m-tile.in .m-art,
+  .media-hero-art.in {
+    animation: none;
+  }
+}
+
 /* ---------- coming soon ---------- */
 .soon-card {
   position: absolute;

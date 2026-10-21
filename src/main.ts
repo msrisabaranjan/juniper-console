@@ -8,6 +8,7 @@ import { initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
 import { initVehiclePage } from "./pages/vehicle";
 import { initDashPage } from "./pages/dash";
 import { initNavigatePage } from "./pages/navigate";
+import { initMediaPage } from "./pages/media";
 import { cancelFx } from "./ui/fx";
 import { initCarScene } from "./three/carScene";
 
@@ -20,6 +21,7 @@ const vehiclePage = initVehiclePage();
 
 const dashPage = initDashPage();
 const navPage = initNavigatePage();
+const mediaPage = initMediaPage();
 
 // ---------- 3D stage ----------
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
@@ -59,6 +61,7 @@ subscribe((s, prev) => {
     if (s.page === "vehicle") vehiclePage.playIntro();
     else if (s.page === "dash") dashPage.playIntro();
     else if (s.page === "navigate") navPage.playIntro();
+    else if (s.page === "media") mediaPage.playIntro();
     else cancelFx(); // drop any half-typed menu animations
   }
   if (s.brightness !== prev.brightness) {
