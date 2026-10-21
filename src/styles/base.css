@@ -31,7 +31,7 @@ body {
      shrink below the widest row's min-content (~980px), so on window
      resize the whole shell overflowed and clipped the right side */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--statusbar-h) 1fr var(--media-h) var(--nav-h);
+  grid-template-rows: 1fr var(--media-h) var(--nav-h);
   height: 100dvh;
   width: 100vw;
 }
@@ -45,13 +45,8 @@ body {
   display: block;
 }
 
-#statusbar {
-  grid-column: 1 / -1;
-  z-index: 5;
-}
-
 #pages {
-  grid-row: 2;
+  grid-row: 1;
   position: relative;
   z-index: 4;
   min-height: 0;
@@ -60,6 +55,15 @@ body {
 #media-strip {
   grid-column: 1 / -1;
   z-index: 5;
+}
+
+/* navigate-tab context strip shares the media strip's row; which one is
+   visible is decided by html[data-page] (chrome.css) */
+#nav-strip {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  z-index: 5;
+  display: none;
 }
 
 #navbar {

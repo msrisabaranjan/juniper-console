@@ -27,15 +27,41 @@ browser (1920×1200 landscape, touch-first).
   pedals derived from filtered longitudinal G. Everything parks at NO SIGNAL
   when there is no real source.
 - **Navigate** — full-bleed 3D wireframe nav in the Roadster's idiom: black void,
-  line-art streets, extruded ghost building blocks, heading-up tilted follow camera.
-  Place search (Nominatim) + turn-by-turn routing (public Valhalla) — free key-less
-  services, and when they are unreachable the map still flies on a dashed beeline
-  with ROUTE OFFLINE in the HUD. Quick actions ⌕ NAVIGATE / ⌂ HOME / ▣ WORK float
-  in the map; the route card shows the next maneuver, distance, minutes and arrival.
+  line-art streets, extruded ghost building blocks. Two phases, one map:
+  - *Plan* — searching (Nominatim) and picking a result drops the camera into a
+    flat north-up aerial frame holding every candidate at once: the pick plus
+    alternate routes mined by corridor-probing Valhalla (the public endpoint
+    ignores `alternates`), ghosted in steel with on-map minute-delta badges
+    (`+8 MIN`). Tap any line or badge — or the mirrored chips on the route card —
+    to re-select; every estimate re-prices against the new pick.
+  - *Drive* — the green GO commits: the planning chrome peels away (search bar,
+    quick row and GO step out), the alternates and their badges drop off the
+    map (the decision is made), and the camera flies into the heading-up
+    50°/z17 close chase POV over the arrow. A big amber maneuver prompt —
+    turn glyph + street — floats top-left, chosen amber deliberately so it
+    never blends into the red route line. The bottom bar follows the tab:
+    on Navigate it's a context strip, not the media player — traffic-light
+    green time-to-go + arrival on the left, the trip progress bar in the
+    middle, OVERVIEW/RESUME + EXIT on the right (EXIT ends the trip and
+    parks the camera). Drive 35 m+ off the route for three GPS fixes in a
+    row and it reroutes from where you actually are (labeled `OFF ROUTE ·
+    REROUTING`, ETA and progress re-priced); on desktop, ALT+click any spot
+    off-route to pin a labeled DEMO fix there and watch the same reroute
+    logic run for real. Only real GPS moves the arrow — parked on a
+    desktop, the camera just holds the chase frame (no simulated driving).
+    OVERVIEW lifts you back out to pan; RESUME drops into the chase again.
+  A right-edge rail holds one traffic button whose dot reads grey / amber /
+  green (off / no key / live). Live traffic is opt-in: paste a free TomTom
+  developer
+  key once (stored in localStorage only) and TRAFFIC paints congestion flow
+  tiles under the routes while every candidate's ETA is re-priced with live
+  traffic. No key ⇒ static, clearly-labelled estimates — never fake "live".
+  When Nominatim/Valhalla are unreachable the map still flies on a dashed
+  beeline with ROUTE OFFLINE in the HUD.
 - **Listen / Climate** — styled "module offline — arriving in v2" placeholders.
 
-Global chrome: `P R N D` gear selector, battery %, live clock, left dot-grid dock
-(ride-height up/down), `< HI >` climate pill, media bar with fake playlist, bottom nav.
+Global chrome is bottom-only — there is no top status bar: `< HI >` climate
+controls and media bar with fake playlist sit above the bottom nav.
 
 ## Stack
 
@@ -95,6 +121,11 @@ real HTTPS, no dev server or cert warnings.
   Shown on the DASH map via the style's attribution control.
 - **Weather** — Open-Meteo.com (free non-commercial tier, data licensed CC BY 4.0);
   credited in the DASH exterior-temp panel.
+- **Traffic (optional)** — TomTom Maps/Traffic APIs free developer tier (~2,500
+  requests/day), used only when you paste your own key into the Navigate page
+  (kept in localStorage, never in the repo): dark-tuned flow tiles + live-traffic
+  ETA re-pricing. © TomTom rides with the tile layer's attribution control. Get a
+  free key at developer.tomtom.com → Maps API + Routing API + Traffic API.
 
 ## In-car hardening
 
@@ -110,9 +141,11 @@ real HTTPS, no dev server or cert warnings.
 src/
   state.ts          tiny pub/sub app store
   styles/           tokens.css (design layer) · base · chrome · pages
-  ui/               chrome.ts (statusbar/nav/climate/media) · segmented.ts · fx.ts
+  ui/               chrome.ts (navbar/climate/volume/media) · segmented.ts · fx.ts
                     sensors.ts (GPS -> ENU -> Kalman feed) · geo.ts · kalman.ts ·
-                    mapView.ts (MapLibre follow) · weather.ts (Open-Meteo)
+                    mapView.ts (MapLibre follow) · navMap.ts (routing overlay +
+                    alternates + traffic layer) · routing.ts (Nominatim/Valhalla) ·
+                    traffic.ts (optional TomTom) · weather.ts (Open-Meteo)
   pages/            vehicle.ts (mode rail + sub-tabs) · dash.ts (track telemetry)
   three/            carScene.ts (Juniper stage: original GLB + dot grid + interaction)
 public/fonts/       self-hosted woff2 subsets + fonts.css + OFL license texts

@@ -82,6 +82,12 @@ export interface MapView {
   setFollow(on: boolean, lock?: boolean): void;
   /** Re-aim the follow camera (e.g. different pitch/zoom for a mode change). */
   setCamera(pitch: number, zoom: number): void;
+  /**
+   * Preview-only: pin the marker/camera to a page-supplied spot (the DEMO
+   * wrong-turn fix) instead of the GPS feed, until cleared. Real fixes keep
+   * running underneath; nothing is drawn from them while the override holds.
+   */
+  setOverridePos(pos: [number, number] | null, headingRad?: number): void;
   /** Debug/console access to the underlying MapLibre map. */
   getMap(): MLMap;
 }
@@ -253,12 +259,26 @@ export function createMapView(
 
   let raf: number | undefined;
   let seenFixAt = 0;
+  let override: { pos: [number, number]; heading: number; pending: boolean } | null = null;
 
   function frame(): void {
     const s = feed.read();
-    markerEl.classList.toggle("parked", s.live && s.speed < 0.5);
+    markerEl.classList.toggle("parked", override !== null || (s.live && s.speed < 0.5));
 
-    if (s.lat != null && s.lng != null) {
+    if (override) {
+      // demo fix holds the arrow and camera; the real feed keeps updating unseen
+      marker.setLngLat(override.pos);
+      if (following && override.pending) {
+        override.pending = false;
+        map.easeTo({
+          center: override.pos,
+          bearing: (override.heading * 180) / Math.PI,
+          zoom: parkedZoom,
+          pitch,
+          duration: FOLLOW_EASE_MS,
+        });
+      }
+    } else if (s.lat != null && s.lng != null) {
       const pos: [number, number] = [s.lng, s.lat];
       marker.setLngLat(pos);
       // one easeTo per fresh fix; chained ~1s eases read as continuous glide
@@ -316,6 +336,13 @@ export function createMapView(
     setCamera(nextPitch, zoom) {
       pitch = nextPitch;
       parkedZoom = zoom; // follow-mode zoom target for upcoming eases
+    },
+    setOverridePos(pos, headingRad) {
+      if (!pos) {
+        override = null;
+        return;
+      }
+      override = { pos, heading: headingRad ?? (map.getBearing() * Math.PI) / 180, pending: true };
     },
     getMap() {
       return map;

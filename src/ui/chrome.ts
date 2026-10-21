@@ -1,47 +1,4 @@
-import { getState, setState, subscribe, FAN_LEVELS, TRACKS, type Gear, type PageId } from "../state";
-
-const GEARS: Gear[] = ["P", "R", "N", "D"];
-
-export function initStatusbar(): void {
-  const gear = document.getElementById("gear")!;
-  const buttons = new Map<Gear, HTMLButtonElement>();
-  for (const g of GEARS) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = g;
-    b.setAttribute("aria-pressed", String(g === getState().gear));
-    b.addEventListener("click", () => setState({ gear: g }));
-    buttons.set(g, b);
-    gear.appendChild(b);
-  }
-
-  const fill = document.getElementById("battery-fill")!;
-  const pct = document.getElementById("battery-pct")!;
-
-  subscribe((s, prev) => {
-    if (s.gear !== prev.gear) {
-      buttons.forEach((b, g) => b.setAttribute("aria-pressed", String(g === s.gear)));
-    }
-    if (s.battery !== prev.battery) {
-      pct.textContent = `${s.battery}%`;
-      fill.setAttribute("width", String((22 * s.battery) / 100));
-    }
-  });
-
-  // initial battery fill
-  fill.setAttribute("width", String((22 * getState().battery) / 100));
-  pct.textContent = `${getState().battery}%`;
-
-  const clock = document.getElementById("clock")!;
-  const tick = () => {
-    const now = new Date();
-    const d = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    const t = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    clock.textContent = `${d} · ${t}`;
-  };
-  tick();
-  setInterval(tick, 1000);
-}
+import { getState, setState, subscribe, FAN_LEVELS, TRACKS, type PageId } from "../state";
 
 const NAV_ITEMS: { id: PageId; label: string }[] = [
   { id: "home", label: "HOME" },

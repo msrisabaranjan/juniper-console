@@ -45,11 +45,9 @@ const VEH_MASS = 2000; // ~kg, Model Y Performance, for the regen power estimate
 
 export interface DashPage {
   playIntro(): void;
-  /** Status-bar ticker text for the dash page (TRIP · MOVING · SITTING). */
-  ticker(): string;
 }
 
-export function initDashPage(onStatus: () => void): DashPage {
+export function initDashPage(): DashPage {
   const el = {
     brakeFill: $("dash-brake-fill"),
     brakeVal: $("dash-brake-val"),
@@ -178,11 +176,10 @@ export function initDashPage(onStatus: () => void): DashPage {
     feed.start();
     map.start();
     render(feed.read());
-    // weather + status ticker run at 4 Hz; gauges ride the rAF loop
+    // weather updates ride the same slow beat; gauges ride the rAF loop
     slowTimer = window.setInterval(() => {
       const snap = feed.read();
       weather.maybeUpdate(snap.lat, snap.lng); // exterior temp follows the real fix
-      onStatus();
     }, 250);
     raf = requestAnimationFrame(frame);
   }
@@ -231,12 +228,5 @@ export function initDashPage(onStatus: () => void): DashPage {
 
   return {
     playIntro,
-    ticker() {
-      const s = feed.read();
-      if (!s.live) return "GPS OFFLINE · TRIP STATS PAUSED";
-      return `TRIP ${(s.distanceM * 0.000621371).toFixed(1)} MI · MOVING ${fmtClock(
-        s.movingSec
-      )} · SITTING ${fmtClock(s.sittingTotalSec)}`;
-    },
   };
 }

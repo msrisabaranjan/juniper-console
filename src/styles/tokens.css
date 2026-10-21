@@ -13,6 +13,11 @@
   --car-headlight: #eef4ff;
   --car-drivetrain: #ffb347;
 
+  /* semantic HUD colors (also theme-stable): traffic-light green + maneuver amber */
+  --go: 74 222 128;
+  --go-deep: 34 197 94;
+  --amber: 255 179 71; /* same family as --car-drivetrain */
+
   /* surfaces */
   --bg: #000000;
   --panel: rgba(255 255 255 / 0.02);
@@ -46,7 +51,6 @@
   --sp-7: 48px;
 
   /* chrome geometry */
-  --statusbar-h: 52px;
   --media-h: 56px;
   --nav-h: 56px;
 
