@@ -42,7 +42,10 @@ export function createSegmented(
 
   function moveIndicator(): void {
     const active = buttons.get(value);
-    if (!active) return;
+    if (!active) {
+      ind.style.width = "0"; // accent not in this control (e.g. a color preset)
+      return;
+    }
     ind.style.width = `${active.offsetWidth}px`;
     ind.style.transform = `translateX(${active.offsetLeft}px)`;
   }
@@ -54,7 +57,7 @@ export function createSegmented(
   return {
     el,
     set(v: string) {
-      if (!buttons.has(v) || v === value) return;
+      if (v === value) return;
       value = v;
       buttons.forEach((btn, key) => btn.setAttribute("aria-pressed", String(key === value)));
       moveIndicator();

@@ -6,6 +6,20 @@
     <meta name="theme-color" content="#000000" />
     <title>Juniper Console — Model Y Juniper Performance</title>
     <link rel="stylesheet" href="/fonts/fonts.css" />
+    <script>
+      // Pre-paint accent restore — mirrors loadAccent() in src/state.ts (key: juniper.accent).
+      try {
+        var v = localStorage.getItem("juniper.accent");
+        if (v && ["red", "white", "amber", "mint", "cyan", "cobalt", "cyber"].indexOf(v) >= 0) {
+          document.documentElement.dataset.accent = v;
+        }
+      } catch (e) { /* compat: never break boot */ }
+      // Pre-paint text-mode restore — mirrors loadText() in src/state.ts (key: juniper.text).
+      try {
+        var t = localStorage.getItem("juniper.text");
+        if (t === "chalk") document.documentElement.dataset.text = t;
+      } catch (e) { /* compat: never break boot */ }
+    </script>
   </head>
   <body>
     <div id="app">
@@ -57,12 +71,19 @@
               <div class="dash-panel dash-grow dash-gpanel">
                 <div class="dash-title">G-METER</div>
                 <svg id="dash-gsvg" viewBox="-16 -16 32 32" aria-hidden="true">
-                  <circle r="14" fill="none" stroke="currentColor" stroke-width="0.35" opacity="0.5" />
-                  <circle r="7" fill="none" stroke="currentColor" stroke-width="0.3" opacity="0.3" />
-                  <line x1="-14" y1="0" x2="14" y2="0" stroke="currentColor" stroke-width="0.3" opacity="0.3" />
-                  <line x1="0" y1="-14" x2="0" y2="14" stroke="currentColor" stroke-width="0.3" opacity="0.3" />
-                  <polyline id="dash-gtrail" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.45" />
-                  <circle id="dash-gdot" r="1.3" fill="currentColor" />
+                  <g class="g-dial">
+                    <circle r="14" fill="none" stroke-width="0.35" opacity="0.5" />
+                    <circle r="7" fill="none" stroke-width="0.3" opacity="0.3" />
+                    <line x1="-14" y1="0" x2="14" y2="0" stroke-width="0.3" opacity="0.3" />
+                    <line x1="0" y1="-14" x2="0" y2="14" stroke-width="0.3" opacity="0.3" />
+                  </g>
+                  <g id="dash-gtrail" fill="none">
+                    <polyline class="g-trail-seg" stroke-width="0.35" />
+                    <polyline class="g-trail-seg" stroke-width="0.5" />
+                    <polyline class="g-trail-seg" stroke-width="0.7" />
+                    <polyline class="g-trail-seg" stroke-width="0.9" />
+                  </g>
+                  <circle id="dash-gdot" r="1.3" />
                 </svg>
                 <div class="dash-g-readout"><span id="dash-g-lat">0.00</span> LAT<span class="gsep">/</span><span id="dash-g-lon">0.00</span> LON<span class="gsep">/</span><span id="dash-g-total">0.00</span> G</div>
               </div>
@@ -77,12 +98,6 @@
                 <div class="dash-readout"><span id="dash-brake-val">—</span></div>
               </div>
               <div class="dash-panel">
-                <div class="dash-title">EXTERIOR TEMP</div>
-                <div class="dash-value" id="dash-exttemp-val">—</div>
-                <div class="dash-bar thin"><div class="dash-bar-fill" id="dash-exttemp-fill"></div></div>
-                <div class="dash-credit">WX · OPEN-METEO.COM · CC BY 4.0</div>
-              </div>
-              <div class="dash-panel">
                 <div class="dash-title">SPEED</div>
                 <div class="dash-bar dash-speed" id="dash-speed-bar">
                   <div class="dash-speed-ramp" id="dash-speed-ramp"></div>
@@ -90,6 +105,13 @@
                 </div>
                 <div class="dash-readout"><span id="dash-speed-val">—</span><span class="dash-peak-val" id="dash-speed-peak-val"></span></div>
               </div>
+              <div class="dash-panel">
+                <div class="dash-title">EXTERIOR TEMP</div>
+                <div class="dash-value" id="dash-exttemp-val">—</div>
+                <div class="dash-bar thin"><div class="dash-bar-fill" id="dash-exttemp-fill"></div></div>
+                <div class="dash-credit">WX · OPEN-METEO.COM · CC BY 4.0</div>
+              </div>
+
               <button class="dash-exit" id="dash-exit" type="button">EXIT TRACK MODE</button>
             </div>
           </div>

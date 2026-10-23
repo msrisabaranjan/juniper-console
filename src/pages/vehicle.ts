@@ -1,5 +1,6 @@
-import { getState, setState, subscribe, type DriveMode, type XrayMode } from "../state";
+import { ACCENT_PRESETS, getState, setState, subscribe, type Accent, type DriveMode, type XrayMode } from "../state";
 import { createSegmented, type Segmented } from "../ui/segmented";
+import { createSwatches, type Swatches } from "../ui/swatches";
 import { cancelFx, glitchIn, hideForType, schedule, typeIn } from "../ui/fx";
 
 type SubTab = "dynamics" | "lights" | "display" | "charging";
@@ -177,6 +178,8 @@ export function initVehiclePage(): { playIntro(): void } {
   // animate the existing widgets instead of rebuilding the DOM)
   let dynSegs: Segmented[] | null = null; // [accel, ride, regen, steering]
   let accentSeg: Segmented | null = null;
+  let accentSw: Swatches | null = null;
+  let textSeg: Segmented | null = null;
   let beamsToggle: HTMLButtonElement | null = null;
   let tailsToggle: HTMLButtonElement | null = null;
   let xraySeg: Segmented | null = null;
@@ -184,6 +187,8 @@ export function initVehiclePage(): { playIntro(): void } {
   function renderBody(): void {
     dynSegs = null;
     accentSeg = null;
+    accentSw = null;
+    textSeg = null;
     beamsToggle = null;
     tailsToggle = null;
     xraySeg = null;
@@ -231,9 +236,18 @@ export function initVehiclePage(): { playIntro(): void } {
 
       bodyEl.append(row("Headlight Beams", beamsToggle), row("Lightbar Taillights", tailsToggle));
     } else if (activeTab === "display") {
-      accentSeg = createSegmented(["Crimson", "Chalk"], s.accent === "red" ? "Crimson" : "Chalk", (v) => {
+      accentSeg = createSegmented(["Crimson", "Chalk"], s.accent === "red" ? "Crimson" : s.accent === "white" ? "Chalk" : "none", (v) => {
         setState({ accent: v === "Crimson" ? "red" : "white" });
       }, "Appearance accent");
+      accentSw = createSwatches(ACCENT_PRESETS, s.accent, (v) => {
+        setState({ accent: v as Accent });
+      }, "Accent color presets");
+      textSeg = createSegmented(
+        ["Accent", "Chalk"],
+        s.textMode === "chalk" ? "Chalk" : "Accent",
+        (v) => setState({ textMode: v === "Chalk" ? "chalk" : "accent" }),
+        "HUD text color"
+      );
 
       const brightWrap = document.createElement("div");
       brightWrap.className = "slider";
@@ -259,7 +273,13 @@ export function initVehiclePage(): { playIntro(): void } {
         "X-ray body view"
       );
 
-      bodyEl.append(row("Appearance", accentSeg.el), row("Brightness", brightWrap), row("X-Ray Body", xraySeg.el));
+      bodyEl.append(
+        row("Appearance", accentSeg.el),
+        row("Accent Colors", accentSw.el),
+        row("HUD Text", textSeg.el),
+        row("Brightness", brightWrap),
+        row("X-Ray Body", xraySeg.el)
+      );
     } else {
       const limitWrap = document.createElement("div");
       limitWrap.className = "slider";
@@ -322,8 +342,12 @@ export function initVehiclePage(): { playIntro(): void } {
         dynSegs[3].set(s.steering);
       }
     }
-    if (s.accent !== prev.accent && accentSeg) {
-      accentSeg.set(s.accent === "red" ? "Crimson" : "Chalk");
+    if (s.accent !== prev.accent) {
+      if (accentSeg) accentSeg.set(s.accent === "red" ? "Crimson" : s.accent === "white" ? "Chalk" : "none");
+      if (accentSw) accentSw.set(s.accent);
+    }
+    if (s.textMode !== prev.textMode) {
+      if (textSeg) textSeg.set(s.textMode === "chalk" ? "Chalk" : "Accent");
     }
     if ((s.beams !== prev.beams || s.taillights !== prev.taillights) && beamsToggle && tailsToggle) {
       beamsToggle.setAttribute("aria-pressed", String(s.beams));

@@ -1,9 +1,9 @@
 :root {
   /* ---- accent themes (the Roadster UI's red <-> white monochrome switch) ---- */
   --accent: 255 45 45;          /* crimson mode */
-  --accent-dim: 255 45 45 / 0.55;
-  --accent-faint: 255 45 45 / 0.28;
-  --accent-ghost: 255 45 45 / 0.12;
+  --accent-dim: rgb(var(--accent) / 0.55);
+  --accent-faint: rgb(var(--accent) / 0.28);
+  --accent-ghost: rgb(var(--accent) / 0.12);
   --accent-fill: rgb(var(--accent));
   --glow: 0 0 6px rgb(var(--accent) / 0.65), 0 0 18px rgb(var(--accent) / 0.35);
   --glow-soft: 0 0 10px rgb(var(--accent) / 0.35);
@@ -17,6 +17,11 @@
   --go: 74 222 128;
   --go-deep: 34 197 94;
   --amber: 255 179 71; /* same family as --car-drivetrain */
+  /* chalk ink — HUD text in Chalk mode and the g-meter dial; never re-tinted */
+  --chalk: 242 242 242;
+  /* g-meter, Honda track style: chalk dial, crimson ball — never re-tinted */
+  --g-dial: var(--chalk);
+  --g-ball: 255 45 45;
 
   /* surfaces */
   --bg: #000000;
@@ -68,4 +73,31 @@
 /* white/chalk accent mode */
 :root[data-accent="white"] {
   --accent: 242 242 242;
+}
+
+/* amber / mint / cyan / cobalt accent modes (single line each: everything
+   else in the sheet derives from --accent) */
+:root[data-accent="amber"]  { --accent: 255 179 71; }
+:root[data-accent="mint"]   { --accent: 74 222 128; }
+:root[data-accent="cyan"]   { --accent: 34 211 238; }
+:root[data-accent="cobalt"] { --accent: 59 130 246; }
+:root[data-accent="cyber"]   { --accent: 176 38 255; }
+
+/* HUD Text = Chalk: labels and figures go chalk-white while bars, lines,
+   glows, map and the 3D car keep the chosen accent. */
+:root[data-text="chalk"] {
+  --text: rgb(var(--chalk));
+  --text-dim: rgb(var(--chalk) / 0.62);
+  --text-faint: rgb(var(--chalk) / 0.38);
+}
+/* handful of spots that hard-code the accent for text — re-point them too */
+:root[data-text="chalk"] .dash-row b {
+  color: var(--text);
+}
+:root[data-text="chalk"] .dash-exit {
+  color: var(--text);
+}
+:root[data-text="chalk"] #nav-dist {
+  color: var(--text);
+  text-shadow: none; /* drop the accent glow too */
 }
