@@ -12,7 +12,16 @@ export interface CarScene {
 }
 
 const RED = new THREE.Color(1.0, 0.18, 0.18);
-const WHITE = new THREE.Color(0.95, 0.95, 0.95);
+
+const ACCENT_COLORS: Record<Accent, THREE.Color> = {
+  red:    new THREE.Color("#ff2d2d"),
+  white:  new THREE.Color("#f2f2f2"),
+  amber:  new THREE.Color("#ffb347"),
+  mint:   new THREE.Color("#4ade80"),
+  cyan:   new THREE.Color("#22d3ee"),
+  cobalt: new THREE.Color("#3b82f6"),
+  cyber:  new THREE.Color("#b026ff"),
+};
 
 const GLOW_BY_MODE: Record<DriveMode, number> = {
   comfort: 0.45,
@@ -629,7 +638,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
   let camYTarget = CAM_BY_PAGE.home.y;
   let camAimY = CAM_BY_PAGE.home.aimY;
   let camAimYTarget = CAM_BY_PAGE.home.aimY;
-  let accentColor = RED.clone();
+  let accentColor = ACCENT_COLORS.red.clone();
   let dim = 1;
   let dimTarget = 1; // wireframe HUD dims the solid body to a blueprint base
   let xray = 0;
@@ -714,7 +723,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
 
   return {
     setAccent(accent) {
-      accentColor = accent === "red" ? RED.clone() : WHITE.clone();
+      accentColor = ACCENT_COLORS[accent].clone();
     },
     setLights(beams, taillights) {
       beamsOn = beams;

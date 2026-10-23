@@ -14,6 +14,16 @@
   pointer-events: auto;
 }
 
+/* maplibre's stylesheet force-sets pointer-events:auto on its .maplibregl-ctrl*
+   controls, which defeats the .page off-state above — attribution links and
+   zoom buttons of hidden map pages then hit-test above whatever page is active
+   and steal clicks (e.g. swatch click navigating to openstreetmap.org).
+   Re-disable them for inactive pages. */
+.page:not(.active) .maplibregl-ctrl,
+.page:not(.active) .maplibregl-ctrl * {
+  pointer-events: none;
+}
+
 /* ---------- home ---------- */
 .home-hint {
   position: absolute;
@@ -149,6 +159,38 @@
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   color: var(--text-dim);
+}
+
+/* accent preset swatches (Vehicle > Display > Accent Colors) */
+.swatches {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-1) 0;
+}
+
+.swatch {
+  --sw: var(--accent); /* fallback, overridden inline per preset */
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgb(var(--sw));
+  border: 1px solid rgb(var(--sw) / 0.6);
+  box-shadow: 0 0 8px rgb(var(--sw) / 0.4);
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color var(--dur-med) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatch[aria-pressed="true"] {
+  outline-color: rgb(var(--sw) / 0.9);
+  box-shadow: 0 0 12px rgb(var(--sw) / 0.75);
 }
 
 /* segmented control */
@@ -459,9 +501,24 @@
   margin-bottom: var(--sp-2);
 }
 
-/* G-meter tops the right column and soaks up its spare height */
+/* Trip type scales with the panel box so long values and rows always stay
+   inside the frame when the window (and thus the panel) gets short.
+   (cq* units resolve against .dash-session's own box.) */
+.dash-session {
+  container-type: size;
+}
+.dash-session .st {
+  font-size: min(var(--fs-xl), 9.5cqh);
+}
+.dash-session .dash-title {
+  margin-bottom: clamp(2px, 1.4cqh, var(--sp-2));
+}
+
+/* G-meter tops the right column and soaks up its spare height — up to a cap,
+   so it doesn't balloon on tall windows */
 .dash-gpanel {
   flex: 1;
+  max-height: 260px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -471,7 +528,23 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  color: rgb(var(--accent));
+}
+
+/* chalk dial, crimson ball + comet trail — theme-stable by design */
+#dash-gsvg .g-dial circle,
+#dash-gsvg .g-dial line {
+  stroke: rgb(var(--g-dial));
+}
+#dash-gtrail .g-trail-seg {
+  stroke: rgb(var(--g-ball));
+}
+#dash-gtrail .g-trail-seg:nth-child(1) { opacity: 0.15; }
+#dash-gtrail .g-trail-seg:nth-child(2) { opacity: 0.3; }
+#dash-gtrail .g-trail-seg:nth-child(3) { opacity: 0.45; }
+#dash-gtrail .g-trail-seg:nth-child(4) { opacity: 0.6; }
+#dash-gdot {
+  fill: rgb(var(--g-ball));
+  filter: drop-shadow(0 0 2px rgb(var(--g-ball) / 0.8));
 }
 
 .dash-g-readout {
@@ -489,10 +562,11 @@
   color: var(--text-faint);
 }
 
-/* total felt G lights up accent-hot once the tires break 1 g */
+/* total felt G lights up crimson once the tires break 1 g — matches the
+   g-meter ball, stays crimson even in Chalk text mode */
 .dash-g-readout .g-hot {
-  color: rgb(var(--accent));
-  text-shadow: 0 0 8px rgb(var(--accent) / 0.8);
+  color: rgb(var(--g-ball));
+  text-shadow: 0 0 8px rgb(var(--g-ball) / 0.8);
 }
 
 /* session trip stats — full-width under the map, so let the rows breathe */
@@ -504,11 +578,12 @@
 }
 
 .dash-session .session-times {
-  margin-bottom: var(--sp-4);
+  margin-bottom: clamp(0px, 2.5cqh, var(--sp-4));
 }
 
 .dash-session .dash-row {
-  padding: 7px 0;
+  font-size: min(var(--fs-xs), 4cqh);
+  padding: clamp(1px, 1cqh, 7px) 0;
 }
 
 .session-times {
@@ -651,7 +726,7 @@
 
 .dash-exit {
   border: 1px solid var(--line-strong);
-  background: rgb(var(--accent-ghost));
+  background: var(--accent-ghost);
   color: rgb(var(--accent));
   font-family: var(--font-ui);
   font-size: var(--fs-sm);
@@ -662,7 +737,7 @@
 }
 
 .dash-exit:hover {
-  background: rgb(var(--accent-faint));
+  background: var(--accent-faint);
   box-shadow: var(--glow-soft);
 }
 
@@ -715,7 +790,7 @@
 }
 
 .nav-btn:hover {
-  background: rgb(var(--accent-ghost));
+  background: var(--accent-ghost);
   color: var(--text);
 }
 
@@ -782,7 +857,7 @@
 }
 
 .nav-results li:hover {
-  background: rgb(var(--accent-ghost));
+  background: var(--accent-ghost);
 }
 
 .nav-results li b {
@@ -1058,7 +1133,7 @@
 }
 
 .nav-rail-btn:hover {
-  background: rgb(var(--accent-ghost));
+  background: var(--accent-ghost);
   color: var(--text);
 }
 

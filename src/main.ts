@@ -3,7 +3,7 @@ import "./styles/base.css";
 import "./styles/chrome.css";
 import "./styles/pages.css";
 
-import { getState, subscribe } from "./state";
+import { getState, persistAccent, persistText, subscribe } from "./state";
 import { initNavbar, initClimate, initVolume, initMedia } from "./ui/chrome";
 import { initVehiclePage } from "./pages/vehicle";
 import { initDashPage } from "./pages/dash";
@@ -31,7 +31,12 @@ const scene = initCarScene(canvas);
 subscribe((s, prev) => {
   if (s.accent !== prev.accent) {
     document.documentElement.dataset.accent = s.accent;
+    persistAccent(s.accent);
     scene.setAccent(s.accent);
+  }
+  if (s.textMode !== prev.textMode) {
+    document.documentElement.dataset.text = s.textMode;
+    persistText(s.textMode);
   }
   if (s.beams !== prev.beams || s.taillights !== prev.taillights) {
     scene.setLights(s.beams, s.taillights);
@@ -58,6 +63,8 @@ subscribe((s, prev) => {
 
 // initial scene sync
 document.documentElement.dataset.page = getState().page;
+document.documentElement.dataset.accent = getState().accent;
+document.documentElement.dataset.text = getState().textMode;
 scene.setAccent(getState().accent);
 scene.setLights(getState().beams, getState().taillights);
 scene.setDriveMode(getState().driveMode);

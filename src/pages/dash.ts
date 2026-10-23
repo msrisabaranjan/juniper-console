@@ -60,7 +60,6 @@ export function initDashPage(): DashPage {
     extVal: $("dash-exttemp-val"),
     gsvg: $("dash-gsvg"),
     gdot: $("dash-gdot"),
-    gtrail: $("dash-gtrail"),
     gLat: $("dash-g-lat"),
     gLon: $("dash-g-lon"),
     gTotal: $("dash-g-total"),
@@ -74,6 +73,8 @@ export function initDashPage(): DashPage {
     tripGps: $("dash-trip-gps"),
     exit: $("dash-exit"),
   };
+  // the g-trail is now 4 overlapping polylines (comet look, see pages.css)
+  const gTrailSegs = [...document.querySelectorAll<SVGPolylineElement>("#dash-gtrail .g-trail-seg")];
 
   // ---- real sensors + map + weather (GPS / accelerometer / Open-Meteo) ----
   const feed = createSensorFeed();
@@ -88,6 +89,10 @@ export function initDashPage(): DashPage {
 
   const trail: [number, number][] = [];
   let lastTrailAt = 0;
+  let visX = 0; // smoothed ball position (svg units)
+  let visY = 0;
+  let lastPulseG = 0;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let peakMph = 0; // fastest speed this drive; resets when the fix drops
 
   const gScale = 10; // 1g = 10 svg units (ring at 14 ≈ 1.4g)
@@ -136,21 +141,51 @@ export function initDashPage(): DashPage {
     // G-meter: live sensor values (devicemotion > GPS-derived > parked)
     const px = snap.gx * gScale;
     const py = -snap.gy * gScale;
-    el.gdot.setAttribute("cx", px.toFixed(2));
-    el.gdot.setAttribute("cy", py.toFixed(2));
+    // ball glides (exponential approach) — raw feed is a jittery step function
+    visX += (px - visX) * 0.12;
+    visY += (py - visY) * 0.12;
+    if (Math.abs(px - visX) < 0.01 && Math.abs(py - visY) < 0.01) {
+      visX = px; visY = py;
+    }
+    el.gdot.setAttribute("cx", visX.toFixed(2));
+    el.gdot.setAttribute("cy", visY.toFixed(2));
     const now = performance.now();
     if (now - lastTrailAt > TRAIL_MS) {
       trail.push([px, py]);
-      if (trail.length > 26) trail.shift();
+      while (trail.length > 32) trail.shift();
       lastTrailAt = now;
     }
-    el.gtrail.setAttribute("points", trail.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+    // comet: 4 overlapping segments, oldest faintest (see pages.css opacity ladder)
+    const n = trail.length;
+    if (n > 1) {
+      const q = Math.max(2, Math.ceil(n / gTrailSegs.length));
+      gTrailSegs.forEach((poly, i) => {
+        const from = Math.max(0, n - q * (gTrailSegs.length - i));
+        poly.setAttribute(
+          "points",
+          trail.slice(from).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ")
+        );
+      });
+    } else {
+      for (const poly of gTrailSegs) poly.removeAttribute("points");
+    }
     el.gLat.textContent = snap.gLive ? snap.gx.toFixed(2) : "—";
     el.gLon.textContent = snap.gLive ? snap.gy.toFixed(2) : "—";
     // total felt G: length of the (lat, lon) vector — what the tires are doing
     const totalG = Math.hypot(snap.gx, snap.gy);
     el.gTotal.textContent = snap.gLive ? totalG.toFixed(2) : "—";
     el.gTotal.classList.toggle("g-hot", snap.gLive && totalG >= 1);
+    // pulse the ball when the tires set a new local G peak
+    if (snap.gLive && totalG > lastPulseG + 0.15) {
+      lastPulseG = totalG;
+      if (!reducedMotion) {
+        el.gdot.animate(
+          [{ r: "1.9px" }, { r: "1.3px" }],
+          { duration: 350, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+        );
+      }
+    }
+    if (!snap.gLive || totalG < 0.3) lastPulseG = Math.max(0, lastPulseG - 0.01);
 
     // map readout: how long the car has been sitting in this spot
     el.mapSitting.textContent = fmtClock(snap.sittingSec);
