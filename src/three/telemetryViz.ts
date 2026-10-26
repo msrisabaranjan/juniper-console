@@ -4,7 +4,7 @@ import { getState, subscribe } from "../state";
 // (tsconfig noUnusedLocals rejects it until then).
 // import { ACCENT_COLORS } from "./carScene";
 import { createSensorFeed, type SensorFeed } from "../ui/sensors";
-import { GRID_D, GRID_W, SEG_X, SEG_Z } from "../ui/vizMath";
+import * as vizMath from "../ui/vizMath";
 
 /**
  * HOME telemetry visualizer — a three.js mesh grid that replaces the car on
@@ -51,7 +51,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
   camera.position.set(0, 42, 104); // hero angle down the grid plane
   camera.lookAt(0, 0, -20);
 
-  const geo = new THREE.PlaneGeometry(GRID_W, GRID_D, SEG_X, SEG_Z);
+  const geo = new THREE.PlaneGeometry(vizMath.GRID_W, vizMath.GRID_D, vizMath.SEG_X, vizMath.SEG_Z);
   geo.rotateX(-Math.PI / 2); // lay flat on x/z, y up
 
   const wireMat = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x2a2a2a });
@@ -102,6 +102,10 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
 
   (window as unknown as Record<string, unknown>).__viz = { stats: () => ({ ...stats }), feed };
   (window as unknown as Record<string, unknown>).__vizfeed = feed;
+
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__vizmath = vizMath;
+  }
 
   return { stats: () => ({ ...stats }), feed };
 }
