@@ -267,6 +267,32 @@
         </div>
       </div>
 
+      <!-- DASH-tab context strip: same grid row, swapped in via
+           html[data-page="dash"] — the music bar steps out while the route's
+           elevation profile from NAVIGATE takes the bottom bar -->
+      <div id="elev-strip" aria-label="Route elevation profile">
+        <div class="elev-id">
+          <div class="elev-title">ELEVATION</div>
+          <div class="elev-dest" id="elev-dest">NO ACTIVE ROUTE</div>
+        </div>
+        <div class="elev-chart" id="elev-chart">
+          <svg id="elev-svg" viewBox="0 0 300 56" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="2" y1="46" x2="298" y2="46" class="elev-baseline" />
+            <path id="elev-area" />
+            <path id="elev-line" />
+            <line id="elev-car" y1="6" y2="48" />
+          </svg>
+          <div class="elev-empty" id="elev-empty" hidden></div>
+        </div>
+        <div class="elev-stats" role="group" aria-label="Elevation stats">
+          <span class="est"><i>GAIN</i><b id="elev-gain">—</b></span>
+          <span class="est"><i>LOSS</i><b id="elev-loss">—</b></span>
+          <span class="est"><i>MAX</i><b id="elev-max">—</b></span>
+          <span class="est"><i>START→END</i><b id="elev-delta">—</b></span>
+          <span class="elev-credit">ELEV · OPEN-METEO.COM · CC BY 4.0</span>
+        </div>
+      </div>
+
       <nav id="navbar" aria-label="Primary"></nav>
 
       <div id="boot" aria-hidden="true">

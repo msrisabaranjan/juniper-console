@@ -404,6 +404,33 @@ export function offRouteMeters(coords: LngLat[], pos: LngLat): number {
   return best === Infinity ? 0 : best;
 }
 
+// --------------------------------------------------------- active route ----
+// The NAVIGATE page owns the route; the DASH elevation strip renders the same
+// RouteResult without owning it. A plain module store (not AppState) keeps
+// multi-KB coordinate arrays out of the state fan-out. `label` is the
+// destination name so the strip can say what the profile belongs to.
+
+export interface ActiveRoute {
+  route: RouteResult;
+  label: string;
+}
+
+let activeRoute: ActiveRoute | null = null;
+let routeVersion = 0; // bumped on every set/clear — cheap change detector
+
+export function setActiveRoute(route: RouteResult | null, label = ""): void {
+  activeRoute = route ? { route, label } : null;
+  routeVersion++;
+}
+
+export function getActiveRoute(): ActiveRoute | null {
+  return activeRoute;
+}
+
+export function getRouteVersion(): number {
+  return routeVersion;
+}
+
 /** Compass heading (rad, clockwise from north) from a to b — for re-aiming the demo fix. */
 export function bearingRad(a: LngLat, b: LngLat): number {
   const dy = (b[1] - a[1]) * 111_320;

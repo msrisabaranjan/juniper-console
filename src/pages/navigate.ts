@@ -11,6 +11,7 @@ import {
   offRouteMeters,
   pointAlong,
   searchPlaces,
+  setActiveRoute,
   type LngLat,
   type Place,
   type RouteResult,
@@ -212,6 +213,7 @@ export function initNavigatePage(): NavigatePage {
     routing = false;
     route = next;
     routes = [next];
+    setActiveRoute(next, place.name); // DASH elevation strip follows the pick
     progress = next.coords.length > 1 ? 0 : 1;
     progressFloor = progress;
     offFixes = 0;
@@ -318,6 +320,7 @@ export function initNavigatePage(): NavigatePage {
     if (!picked || picked === routes[0]) return;
     routes = [picked, ...routes.filter((r) => r !== picked)];
     route = picked;
+    setActiveRoute(picked, dest ? dest.name : "");
     progress = lastFix ? nav.progress(lastFix) : 0; // re-project onto the new geometry
     progressFloor = progress;
     nav.setRoutes(routes, labelsFor());
@@ -333,6 +336,7 @@ export function initNavigatePage(): NavigatePage {
     dest = null;
     route = null;
     routes = [];
+    setActiveRoute(null);
     progress = 0;
     progressFloor = 0;
     phase = "idle";
@@ -513,6 +517,7 @@ export function initNavigatePage(): NavigatePage {
     }
     route = next;
     routes = [next];
+    setActiveRoute(next, dest?.name ?? "");
     nav.setRoutes(routes, [null]);
     progress = nav.progress(pos);
     progressFloor = progress;

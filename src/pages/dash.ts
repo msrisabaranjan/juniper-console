@@ -1,5 +1,6 @@
 import { setState, subscribe } from "../state";
 import { cancelFx, glitchIn, hideForType, schedule, typeIn } from "../ui/fx";
+import { createElevStrip } from "../ui/elevation";
 import { createMapView } from "../ui/mapView";
 import { createSensorFeed, type SensorSnapshot } from "../ui/sensors";
 import { createWeatherFeed } from "../ui/weather";
@@ -80,6 +81,9 @@ export function initDashPage(): DashPage {
   const feed = createSensorFeed();
   const map = createMapView($("dash-map-wrap"), feed);
   const weather = createWeatherFeed();
+  // bottom-bar elevation profile of the active NAVIGATE route (replaces the
+  // music bar on this tab; see chrome.css html[data-page="dash"] swap)
+  const elev = createElevStrip();
 
   // debug hooks (same spirit as window.__stage): poke a fake feed in the
   // console to exercise the map without a GPS signal
@@ -224,11 +228,13 @@ export function initDashPage(): DashPage {
     if (raf) return;
     feed.start();
     map.start();
+    elev.refresh(); // profile + stats for whatever route NAVIGATE last set
     render(feed.read());
     // weather updates ride the same slow beat; gauges ride the rAF loop
     slowTimer = window.setInterval(() => {
       const snap = feed.read();
       weather.maybeUpdate(snap.lat, snap.lng); // exterior temp follows the real fix
+      elev.tick(snap.lat != null && snap.lng != null ? [snap.lng, snap.lat] : null);
     }, 250);
     raf = requestAnimationFrame(frame);
   }
