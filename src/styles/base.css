@@ -45,6 +45,22 @@ body {
   display: block;
 }
 
+#viz {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: none;
+}
+
+/* HOME is the visualizer stage: carScene blackouts the car there (like it
+   already does for dash) and #viz paints over it — later in the DOM, same
+   z-index, so stacking is deterministic. */
+html[data-page="home"] #viz {
+  display: block;
+}
+
 #pages {
   grid-row: 1;
   position: relative;

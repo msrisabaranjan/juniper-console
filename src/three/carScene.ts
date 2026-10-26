@@ -13,7 +13,7 @@ export interface CarScene {
 
 const RED = new THREE.Color(1.0, 0.18, 0.18);
 
-const ACCENT_COLORS: Record<Accent, THREE.Color> = {
+export const ACCENT_COLORS: Record<Accent, THREE.Color> = {
   red:    new THREE.Color("#ff2d2d"),
   white:  new THREE.Color("#f2f2f2"),
   amber:  new THREE.Color("#ffb347"),
@@ -750,7 +750,7 @@ export function initCarScene(canvas: HTMLCanvasElement): CarScene {
       camAimYTarget = CAM_BY_PAGE[page].aimY;
       velocity = 0;
       posing = true;
-      blackout = page === "dash";
+      blackout = page === "dash" || page === "home"; // home: telemetry visualizer paints over the stage
     },
   };
 }
