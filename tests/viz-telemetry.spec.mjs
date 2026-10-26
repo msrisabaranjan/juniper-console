@@ -97,3 +97,19 @@ test("lateral G banks the grid into the turn", async ({ page }) => {
     undefined, { timeout: 5000 }
   );
 });
+
+test("offline grid parks small and reads NO SIGNAL", async ({ page }) => {
+  await openHome(page); // desktop headless: geolocation denied -> feed never goes live
+  expect(((await page.textContent("#viz-status")) ?? "").trim()).toBe("NO SIGNAL");
+  expect(
+    await page.evaluate(() => window.__viz.stats().signal)
+  ).toBe("NO SIGNAL");
+  expect(
+    await page.evaluate(() => window.__viz.stats().maxAbsY)
+  ).toBeLessThan(1.2);
+  await page.evaluate(SNAP("speed: 10"));
+  await page.waitForFunction(
+    () => document.getElementById("viz-status").textContent.trim() === "LIVE",
+    undefined, { timeout: 3000 }
+  );
+});

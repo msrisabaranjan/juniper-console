@@ -68,6 +68,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
   });
 
   const feed = createSensorFeed();
+  const statusEl = document.getElementById("viz-status")!;
   const stats: VizStats = {
     maxAbsY: 0, leftMeanY: 0, rightMeanY: 0, travel: 0,
     wave: 0, pulse: 0, bankGx: 0, hot: 0, signal: "NO SIGNAL",
@@ -129,6 +130,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
     stats.bankGx = bankS;
     stats.hot = hotS;
     stats.signal = live ? "LIVE" : "NO SIGNAL";
+    statusEl.textContent = live ? "LIVE" : "NO SIGNAL";
 
     renderer.render(scene, camera);
   }
