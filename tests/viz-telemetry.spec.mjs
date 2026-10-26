@@ -72,3 +72,28 @@ test("grid waves scale with speed and travel while moving", async ({ page }) => 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__viz.stats().travel) - u1).toBeLessThan(0.01);
 });
+
+test("braking collapses rings inward and flags g-hot over 1g", async ({ page }) => {
+  await openHome(page);
+  await page.evaluate(SNAP("speed: 20, gy: -1.3")); // 1.3 g braking
+  await page.waitForFunction(
+    () => window.__viz.stats().pulse < -4 && window.__viz.stats().hot > 0.85,
+    undefined, { timeout: 5000 }
+  );
+  await page.evaluate(SNAP("speed: 20, gy: 1.2")); // accelerating: rings flip outward
+  await page.waitForFunction(() => window.__viz.stats().pulse > 4, undefined, { timeout: 5000 });
+});
+
+test("lateral G banks the grid into the turn", async ({ page }) => {
+  await openHome(page);
+  await page.evaluate(SNAP("speed: 20, gx: 1.2")); // hard right
+  await page.waitForFunction(
+    () => window.__viz.stats().rightMeanY < window.__viz.stats().leftMeanY - 1,
+    undefined, { timeout: 5000 }
+  );
+  await page.evaluate(SNAP("speed: 20, gx: -1.2")); // hard left flips the bank
+  await page.waitForFunction(
+    () => window.__viz.stats().rightMeanY > window.__viz.stats().leftMeanY + 1,
+    undefined, { timeout: 5000 }
+  );
+});

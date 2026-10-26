@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import { getState, subscribe } from "../state";
-// ACCENT_COLORS is imported in Task 9 when the g-hot colour pass lands
-// (tsconfig noUnusedLocals rejects it until then).
-// import { ACCENT_COLORS } from "./carScene";
+import { ACCENT_COLORS } from "./carScene";
 import { createSensorFeed, type SensorFeed } from "../ui/sensors";
 import * as vizMath from "../ui/vizMath";
 
@@ -82,6 +80,9 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
   let travel = 0;
   let waveS = 0;
   let noiseS = 0.3;
+  const CRIMSON = new THREE.Color(0xff2d2d); // same g-hot red as the DASH G-meter
+  let accentColor = ACCENT_COLORS[getState().accent].clone();
+  let pulseS = 0, pulsePhase = 0, bankS = 0, hotS = 0;
 
   function frame(): void {
     raf = requestAnimationFrame(frame);
@@ -94,10 +95,14 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
 
     waveS += ((live ? vizMath.waveAmp(snap.speed) : 0.24) - waveS) * 0.06;
     noiseS += ((live ? 1.0 : 0.3) - noiseS) * 0.06;
+    pulseS += (vizMath.pulseAmp(live ? snap.gy : 0) - pulseS) * 0.08;
+    bankS += (vizMath.clampG(live ? snap.gx : 0) - bankS) * 0.08;
+    hotS += (vizMath.hotMix(live ? snap.gx : 0, live ? snap.gy : 0) - hotS) * 0.1;
+    if (live) pulsePhase += dt * (1.5 + Math.abs(pulseS) * 0.35) * (pulseS >= 0 ? 1 : -1);
     if (live) travel += snap.speed * dt * vizMath.K_TRAVEL;
 
     const f: vizMath.VizFrame = {
-      wave: waveS, travel, pulse: 0, pulsePhase: 0, bankGx: 0, noise: noiseS, t: tSec,
+      wave: waveS, travel, pulse: pulseS, pulsePhase, bankGx: bankS, noise: noiseS, t: tSec,
     };
     const pos = geo.attributes.position as THREE.BufferAttribute;
     let maxAbs = 0, lSum = 0, rSum = 0, lN = 0, rN = 0;
@@ -111,12 +116,18 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
       else if (x > 60) { rSum += y; rN++; }
     }
     pos.needsUpdate = true;
+    wireMat.color.copy(accentColor).lerp(CRIMSON, hotS);
+    dotMat.color.copy(wireMat.color);
+    dotMat.opacity = Math.min(0.9, 0.22 + 0.5 * hotS + vizMath.speedEnergy(live ? snap.speed : 0) * 0.25);
 
     stats.maxAbsY = maxAbs;
     stats.leftMeanY = lN ? lSum / lN : 0;
     stats.rightMeanY = rN ? rSum / rN : 0;
     stats.travel = travel;
     stats.wave = waveS;
+    stats.pulse = pulseS;
+    stats.bankGx = bankS;
+    stats.hot = hotS;
     stats.signal = live ? "LIVE" : "NO SIGNAL";
 
     renderer.render(scene, camera);
@@ -135,7 +146,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
   }
 
   subscribe((s, prev) => {
-    if (s.accent !== prev.accent) { /* colour wired in Task 9 */ }
+    if (s.accent !== prev.accent) accentColor = ACCENT_COLORS[s.accent].clone();
     if (s.page === "home" && prev.page !== "home") start();
     else if (s.page !== "home" && prev.page === "home") stop();
   });
