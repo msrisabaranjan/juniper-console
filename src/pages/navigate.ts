@@ -1,4 +1,4 @@
-import { subscribe } from "../state";
+import { setState, subscribe } from "../state";
 import { cancelFx, glitchIn, hideForType, schedule, stopTyping, typeIn } from "../ui/fx";
 import { createNavMap } from "../ui/navMap";
 import { createSensorFeed, type SensorSnapshot } from "../ui/sensors";
@@ -17,6 +17,12 @@ import {
   type RouteResult,
   type StepGlyph,
 } from "../ui/routing";
+import {
+  createPushClient,
+  parsePushMessage,
+  validPushTopic,
+  type PushDestination,
+} from "../ui/addressPush";
 
 /**
  * NAVIGATE — the Roadster-style 3D nav page (reveal video 0:48 / 1:24), run
@@ -126,6 +132,12 @@ export function initNavigatePage(): NavigatePage {
     keyInput: $<HTMLInputElement>("nav-tt-key"),
     keySave: $("nav-key-save"),
     keyClear: $("nav-key-clear"),
+    push: $("nav-push"),
+    pushState: $("nav-push-state"),
+    pushPanel: $("nav-push-panel"),
+    pushTopic: $<HTMLInputElement>("nav-push-topic"),
+    pushSave: $("nav-push-save"),
+    pushClear: $("nav-push-clear"),
     maneuver: $("nav-maneuver"),
     maneuverGlyph: $("nav-maneuver-glyph"),
     maneuverText: $("nav-maneuver-text"),
@@ -248,10 +260,13 @@ export function initNavigatePage(): NavigatePage {
       nav.setRoutes(routes, labelsFor());
       if (phase === "preview") nav.setMode("plan"); // re-frame so the new ghosts are in view
       renderAlts();
-      setStatus(
-        `${found.length} ALT ROUTE${found.length === 1 ? "" : "S"} · TAP ON MAP${traffic.hasKey() ? "" : " · STATIC ETAS"}`,
-        6000,
-      );
+      // a push-driven GO can already be in drive phase — never stomp its
+      // NAVIGATING line with preview chrome when alternates land late
+      if (phase === "preview")
+        setStatus(
+          `${found.length} ALT ROUTE${found.length === 1 ? "" : "S"} · TAP ON MAP${traffic.hasKey() ? "" : " · STATIC ETAS"}`,
+          6000,
+        );
       if (traffic.hasKey()) void priceLive();
     } catch (e) {
       console.warn("[nav] alternate routes failed:", e);
@@ -726,6 +741,110 @@ export function initNavigatePage(): NavigatePage {
     setStatus("TRAFFIC OFF · KEY CLEARED", 4000);
   });
   refreshTrafficBtn();
+
+  // ---- address push (phone -> ntfy topic -> this dash) ---------------------
+  const push = createPushClient({
+    onDestination: (pushed) => void driveToPush(pushed),
+    onState: (s) => {
+      el.pushState.dataset.state = s === "armed" ? "live" : "off";
+      el.push.title =
+        s === "armed" ? `ADDRESS PUSH · ntfy.sh/${push.getTopic()}` : "ADDRESS PUSH · OFF";
+    },
+    onUnparsed: () => setStatus("PUSH UNPARSED · SEND A MAPS LINK OR ADDRESS", 5000),
+  });
+
+  // the phone said go: jump to NAVIGATE (if not already), route, then commit
+  // straight into the drive phase — no plan-preview round trip
+  async function driveToPush(pushed: PushDestination): Promise<void> {
+    if (routing) {
+      setStatus("PUSH BUSY · TRY AGAIN", 4000);
+      return;
+    }
+    setState({ page: "navigate" });
+    if (!raf) startAll(); // tab was never opened this session — spin up feeds
+    let place: Place;
+    if (pushed.kind === "coords") {
+      place = {
+        name: pushed.label || "PUSHED PIN",
+        detail: "",
+        lat: pushed.lat as number,
+        lon: pushed.lon as number,
+      };
+    } else {
+      const q = pushed.query as string;
+      setStatus(`PUSH SEARCH · ${shortName(q)}`, 3000);
+      const center = nav.getMap().getCenter();
+      const near = lastFix ?? [center.lng, center.lat];
+      let places: Place[];
+      try {
+        places = await searchPlaces(q, near);
+        // Google share titles are often "Name, Address" — Nominatim chokes on
+        // stitched street strings but hits clean on the bare POI name
+        if (!places.length && q.includes(",")) {
+          places = await searchPlaces(q.split(",")[0].trim(), near);
+        }
+      } catch {
+        setStatus("PUSH SEARCH OFFLINE · TRY AGAIN", 5000);
+        return;
+      }
+      if (!places.length) {
+        setStatus("PUSH NOT FOUND · CHECK ADDRESS", 5000);
+        return;
+      }
+      place = places[0];
+    }
+    await routeTo(place);
+    if (phase === "preview") startDrive();
+  }
+
+  function openPushPanel(): void {
+    el.pushPanel.hidden = false;
+    el.pushTopic.value = push.getTopic();
+    el.pushTopic.focus();
+    setStatus("PUSH TOPIC · SHARED NTFY CHANNEL NAME (PICK SOMETHING UNGUESSABLE)", 8000);
+  }
+  function savePushTopic(): void {
+    const topic = el.pushTopic.value.trim();
+    if (!topic) {
+      push.setTopic("");
+      el.pushPanel.hidden = true;
+      setStatus("PUSH OFF · TOPIC CLEARED", 4000);
+      return;
+    }
+    if (!validPushTopic(topic)) {
+      setStatus("TOPIC INVALID · LETTERS NUMBERS DASHES ONLY", 5000);
+      return;
+    }
+    push.setTopic(topic);
+    el.pushPanel.hidden = true;
+    setStatus(`PUSH ARMED · ntfy.sh/${topic}`, 6000);
+  }
+  el.push.addEventListener("click", openPushPanel);
+  el.pushSave.addEventListener("click", savePushTopic);
+  el.pushTopic.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") savePushTopic();
+    if (ev.key === "Escape") el.pushPanel.hidden = true;
+  });
+  el.pushClear.addEventListener("click", () => {
+    push.setTopic("");
+    el.pushTopic.value = "";
+    el.pushPanel.hidden = true;
+    setStatus("PUSH OFF · TOPIC CLEARED", 4000);
+  });
+
+  // debug/test hook (same convention as __navmap / __elev / __dashfeed):
+  // inject a pushed message without touching the network
+  (window as unknown as Record<string, unknown>).__push = {
+    parse: parsePushMessage,
+    receive: (raw: string) => {
+      const pushed = parsePushMessage(String(raw));
+      if (pushed) void driveToPush(pushed);
+      else setStatus("PUSH UNPARSED · SEND A MAPS LINK OR ADDRESS", 5000);
+    },
+    setTopic: (t: string) => push.setTopic(t),
+    topic: () => push.getTopic(),
+    state: () => el.pushState.dataset.state,
+  };
 
   document.addEventListener("click", (ev) => {
     if (!el.results.hidden && !el.results.contains(ev.target as Node) && ev.target !== el.input) {
