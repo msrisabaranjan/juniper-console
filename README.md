@@ -158,3 +158,9 @@ src/
 public/fonts/       self-hosted woff2 subsets + fonts.css + OFL license texts
 public/models/      car.glb (in-house Blender model) · mapstyle.json (OpenFreeMap HUD restyle)
 ```
+
+## Address push
+
+Share a place from Google Maps on the iPhone → the NAVIGATE tab receives it
+over an ntfy.sh topic and starts navigating. Setup + details in
+[docs/address-push.md](docs/address-push.md).
