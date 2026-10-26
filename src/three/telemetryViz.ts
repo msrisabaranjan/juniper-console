@@ -53,6 +53,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
 
   const geo = new THREE.PlaneGeometry(vizMath.GRID_W, vizMath.GRID_D, vizMath.SEG_X, vizMath.SEG_Z);
   geo.rotateX(-Math.PI / 2); // lay flat on x/z, y up
+  const base = Float32Array.from(geo.attributes.position.array as Float32Array);
 
   const wireMat = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x2a2a2a });
   scene.add(new THREE.Mesh(geo, wireMat));
@@ -76,8 +77,48 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
   let raf = 0;
   let running = false;
 
+  let last = performance.now();
+  let tSec = 0;
+  let travel = 0;
+  let waveS = 0;
+  let noiseS = 0.3;
+
   function frame(): void {
     raf = requestAnimationFrame(frame);
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    tSec += dt;
+    const snap = feed.read(); // filter peek -> 60 FPS field from ~1 Hz fixes
+    const live = snap.live;
+
+    waveS += ((live ? vizMath.waveAmp(snap.speed) : 0.24) - waveS) * 0.06;
+    noiseS += ((live ? 1.0 : 0.3) - noiseS) * 0.06;
+    if (live) travel += snap.speed * dt * vizMath.K_TRAVEL;
+
+    const f: vizMath.VizFrame = {
+      wave: waveS, travel, pulse: 0, pulsePhase: 0, bankGx: 0, noise: noiseS, t: tSec,
+    };
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    let maxAbs = 0, lSum = 0, rSum = 0, lN = 0, rN = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const x = base[3 * i], z = base[3 * i + 2];
+      const y = vizMath.heightAt(x, z, f);
+      pos.setY(i, y);
+      const a = Math.abs(y);
+      if (a > maxAbs) maxAbs = a;
+      if (x < -60) { lSum += y; lN++; }
+      else if (x > 60) { rSum += y; rN++; }
+    }
+    pos.needsUpdate = true;
+
+    stats.maxAbsY = maxAbs;
+    stats.leftMeanY = lN ? lSum / lN : 0;
+    stats.rightMeanY = rN ? rSum / rN : 0;
+    stats.travel = travel;
+    stats.wave = waveS;
+    stats.signal = live ? "LIVE" : "NO SIGNAL";
+
     renderer.render(scene, camera);
   }
   function start(): void {

@@ -57,3 +57,18 @@ test("telemetry math mappings are monotone and signed", async ({ page }) => {
   expect(Math.abs(r.n1)).toBeLessThanOrEqual(1);
   expect(r.bendRight).toBeLessThan(r.bendLeft); // right turn (+gx) dips +x rim
 });
+
+test("grid waves scale with speed and travel while moving", async ({ page }) => {
+  await openHome(page);
+  await page.evaluate(SNAP("speed: 30")); // ~67 mph
+  await page.waitForFunction(() => window.__viz.stats().maxAbsY > 4, undefined, { timeout: 5000 });
+  const t1 = await page.evaluate(() => window.__viz.stats().travel);
+  await page.waitForTimeout(500);
+  const t2 = await page.evaluate(() => window.__viz.stats().travel);
+  expect(t2 - t1).toBeGreaterThan(1.5); // 30 m/s * 0.5 s * K 0.2 ~ 3 rad
+  await page.evaluate(SNAP("speed: 0"));
+  await page.waitForFunction(() => window.__viz.stats().maxAbsY < 2.2, undefined, { timeout: 6000 });
+  const u1 = await page.evaluate(() => window.__viz.stats().travel);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__viz.stats().travel) - u1).toBeLessThan(0.01);
+});
