@@ -210,6 +210,152 @@ html[data-page="navigate"] #nav-strip {
   display: flex;
 }
 
+/* swapped in for the media strip whenever the DASH tab is up: the bottom bar
+   shows the active route's elevation profile instead of the music bar */
+html[data-page="dash"] #media-strip {
+  display: none;
+}
+
+html[data-page="dash"] #elev-strip {
+  display: flex;
+}
+
+#elev-strip {
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  border-top: 1px solid var(--line);
+  background-image: linear-gradient(to top, rgb(var(--accent) / 0.05), transparent);
+  background-color: #000;
+}
+
+.elev-id {
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.elev-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--text);
+}
+
+.elev-dest {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.elev-chart {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 120px;
+  height: calc(var(--media-h) - 12px);
+}
+
+#elev-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.elev-baseline {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+}
+
+#elev-area {
+  fill: rgb(var(--accent) / 0.16);
+}
+
+#elev-line {
+  fill: none;
+  stroke: rgb(var(--accent));
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px rgb(var(--accent) / 0.6));
+}
+
+#elev-car {
+  display: none;
+}
+
+#elev-car-rule {
+  stroke: rgb(var(--accent) / 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+#elev-car-vert,
+#elev-car-horiz {
+  stroke: rgb(var(--go));
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.elev-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+}
+
+.elev-empty[hidden] {
+  display: none;
+}
+
+.elev-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.elev-stats .est {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.elev-stats .est i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+}
+
+.elev-stats .est b {
+  font-size: var(--fs-md);
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.elev-credit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  align-self: flex-end;
+}
+
+@media (max-width: 900px) {
+  .elev-id,
+  .elev-credit {
+    display: none;
+  }
+}
+
 #nav-strip {
   align-items: center;
   gap: var(--sp-4);
