@@ -18,9 +18,10 @@ import {
  * resampled to a fixed number of points along cumulative metres, all heights
  * arrive in ONE request, and the answer is cached per RouteResult (a reroute
  * or alt-switch produces a new object -> refetch; revisits never refetch).
- * The car marker rides the same real GPS fix the dash gauges use — no fix,
- * no marker. An unreachable elevation service degrades to an honest status
- * line, never a made-up mountain.
+ * The car marker snaps to the profile at the real GPS fix's progress — no fix,
+ * no marker (console-only __elev.demoFix parks it for demos/tests). An
+ * unreachable elevation service degrades to an honest status line, never a
+ * made-up mountain.
  *
  * Lifecycle follows the dash page: refresh() on entry (fetch on demand),
  * tick() from the render loop for the marker. Routes only change on NAVIGATE,
@@ -94,7 +95,10 @@ export function createElevStrip(): ElevStrip {
     svg: $("elev-svg") as unknown as SVGSVGElement,
     area: $("elev-area") as unknown as SVGPathElement,
     line: $("elev-line") as unknown as SVGPathElement,
-    car: $("elev-car") as unknown as SVGLineElement,
+    car: $("elev-car") as unknown as SVGGElement,
+    carRule: $("elev-car-rule") as unknown as SVGLineElement,
+    carVert: $("elev-car-vert") as unknown as SVGLineElement,
+    carHoriz: $("elev-car-horiz") as unknown as SVGLineElement,
     empty: $("elev-empty"),
     gain: $("elev-gain"),
     loss: $("elev-loss"),
@@ -104,6 +108,8 @@ export function createElevStrip(): ElevStrip {
 
   let drawnRoute: RouteResult | null = null;
   let drawnCum: number[] | null = null; // cumulative metres of the drawn route
+  let drawnPts: [number, number][] = []; // svg coords of the sampled profile (marker snaps to these)
+  let demoFix: LngLat | null = null; // debug-hook position; real fixes always win
 
   function setEmpty(text: string): void {
     el.empty.textContent = text;
@@ -112,6 +118,7 @@ export function createElevStrip(): ElevStrip {
     el.car.style.display = "none";
     drawnRoute = null;
     drawnCum = null;
+    drawnPts = [];
     for (const s of [el.gain, el.loss, el.max, el.delta]) s.textContent = "—";
   }
 
@@ -143,6 +150,7 @@ export function createElevStrip(): ElevStrip {
       "d",
       `M ${x(0).toFixed(1)},${BASE_Y} L ${pts} L ${x(metres.length - 1).toFixed(1)},${BASE_Y} Z`
     );
+    drawnPts = metres.map((m, i) => [x(i), y(m)]);
 
     drawnCum = cumulativeMeters(route.coords);
     const miles = drawnCum[drawnCum.length - 1] / 1609.34;
@@ -185,27 +193,53 @@ export function createElevStrip(): ElevStrip {
   }
 
   function tick(pos: LngLat | null): void {
-    if (!drawnRoute || !drawnCum || !pos) {
+    const where = pos ?? demoFix; // real fix wins; demoFix exists only for console/tests
+    if (!drawnRoute || !drawnCum || !where || drawnPts.length < 2) {
       el.car.style.display = "none";
       return;
     }
-    const prog = routeProgress(drawnRoute.coords, drawnCum, pos);
-    const cx = (2 + prog * (VB_W - 4)).toFixed(1);
-    el.car.style.display = "";
-    el.car.setAttribute("x1", cx);
-    el.car.setAttribute("x2", cx);
+    const prog = routeProgress(drawnRoute.coords, drawnCum, where);
+    const f = Math.min(Math.max(prog, 0), 1) * (drawnPts.length - 1);
+    const i0 = Math.floor(f);
+    const i1 = Math.min(i0 + 1, drawnPts.length - 1);
+    const t = f - i0;
+    const cx = drawnPts[i0][0] + (drawnPts[i1][0] - drawnPts[i0][0]) * t;
+    const cy = drawnPts[i0][1] + (drawnPts[i1][1] - drawnPts[i0][1]) * t;
+    const n = (v: number): string => v.toFixed(1);
+    el.car.style.display = "inline"; // CSS keeps the group display:none; "" would not override it
+    el.carRule.setAttribute("x1", n(cx));
+    el.carRule.setAttribute("x2", n(cx));
+    el.carVert.setAttribute("x1", n(cx));
+    el.carVert.setAttribute("x2", n(cx));
+    el.carVert.setAttribute("y1", n(cy - 4));
+    el.carVert.setAttribute("y2", n(cy + 4));
+    el.carHoriz.setAttribute("x1", n(cx - 5));
+    el.carHoriz.setAttribute("x2", n(cx + 5));
+    el.carHoriz.setAttribute("y", n(cy));
   }
 
   // debug hook (same spirit as __dashfeed / __navmap): inject a fake route in
-  // the console to see the strip without routing through NAVIGATE — the real
-  // Open-Meteo fetch then runs against those coordinates.
+  // the console to see the strip without routing through NAVIGATE. Optional
+  // `heights` (one per SAMPLES point, metres) seeds the cache — no Open-Meteo
+  // call — for demos and tests. `demoFix` parks the car marker without GPS;
+  // a real fix always overrides it.
   (window as unknown as Record<string, unknown>).__elev = {
-    inject(coords: LngLat[], lengthMi: number, label = "DEBUG ROUTE"): void {
-      setActiveRoute(
-        { coords, lengthMi, timeSec: lengthMi * 100, steps: [], offline: false, liveSec: null },
-        label
-      );
+    inject(coords: LngLat[], lengthMi: number, label = "DEBUG ROUTE", heights?: number[]): void {
+      const route: RouteResult = {
+        coords,
+        lengthMi,
+        timeSec: lengthMi * 100,
+        steps: [],
+        offline: false,
+        liveSec: null,
+      };
+      if (Array.isArray(heights) && heights.length >= 2 && heights.every((h) => Number.isFinite(h)))
+        elevCache.set(route, heights);
+      setActiveRoute(route, label);
       refresh();
+    },
+    demoFix(pos: LngLat | null): void {
+      demoFix = pos;
     },
     refresh,
   };

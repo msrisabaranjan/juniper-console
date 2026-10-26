@@ -283,10 +283,20 @@ html[data-page="dash"] #elev-strip {
 }
 
 #elev-car {
-  stroke: rgb(var(--go));
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
   display: none;
+}
+
+#elev-car-rule {
+  stroke: rgb(var(--accent) / 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+#elev-car-vert,
+#elev-car-horiz {
+  stroke: rgb(var(--go));
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
 }
 
 .elev-empty {
