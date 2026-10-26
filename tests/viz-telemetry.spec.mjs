@@ -113,3 +113,18 @@ test("offline grid parks small and reads NO SIGNAL", async ({ page }) => {
     undefined, { timeout: 3000 }
   );
 });
+
+test("?vizdemo=1 drives a scripted live scenario (DEV preview)", async ({ page }) => {
+  await page.goto("/?vizdemo=1");
+  await page.waitForFunction(() =>
+    document.getElementById("boot")?.classList.contains("done"));
+  await page.waitForFunction(
+    () => window.__viz.stats().signal === "LIVE" && window.__viz.stats().maxAbsY > 4,
+    undefined, { timeout: 8000 }
+  );
+  // demo mode enables preserveDrawingBuffer, so the canvas is capturable
+  // (CDP screenshots of this app's WebGL stay black - toDataURL is the check)
+  const png = await page.evaluate(() => document.getElementById("viz").toDataURL("image/png"));
+  expect(png.startsWith("data:image/png;base64,")).toBe(true);
+  expect(png.length).toBeGreaterThan(20000);
+});

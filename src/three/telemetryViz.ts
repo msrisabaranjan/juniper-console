@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getState, subscribe } from "../state";
 import { ACCENT_COLORS } from "./carScene";
-import { createSensorFeed, type SensorFeed } from "../ui/sensors";
+import { createSensorFeed, type SensorFeed, type SensorSnapshot } from "../ui/sensors";
 import * as vizMath from "../ui/vizMath";
 
 /**
@@ -36,8 +36,28 @@ export interface TelemetryViz {
   feed: SensorFeed;
 }
 
+/** Scripted 30 s drive: launch -> top-speed cruise -> hard brake -> cornering
+ *  roll-off. DEV-only (?vizdemo=1) so a live preview reacts without a GPS
+ *  signal; production keeps the real-data-only rule from sensors.ts. */
+function demoSnapshot(t: number): SensorSnapshot {
+  const G = 9.81;
+  const cyc = t % 30;
+  let speed = 0, gy = 0, gx = 0;
+  if (cyc < 6) { gy = 0.9; speed = 0.9 * G * cyc; }            // hard launch, 0 -> ~53 m/s
+  else if (cyc < 12) { speed = 52.9; }                         // ~118 mph cruise
+  else if (cyc < 15) { gy = -1.25; speed = Math.max(16, 52.9 - 1.25 * G * (cyc - 12)); }
+  else if (cyc < 23) { speed = 16; gx = 1.1 * Math.sin((Math.PI * (cyc - 15)) / 8); } // 15 mph corner
+  else { speed = Math.max(0, 16 - (16 / 7) * (cyc - 23)); }    // roll to stop, idle breathing
+  return {
+    live: true, speed, heading: 0, lat: 37.77, lng: -122.42, fixAt: performance.now(),
+    sittingSec: 0, distanceM: 0, movingSec: 0, sittingTotalSec: 0,
+    gx, gy, gLive: true, accuracy: 4, source: "gps", lastMoveClock: null,
+  };
+}
+
 export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const demoMode = import.meta.env.DEV && new URLSearchParams(window.location.search).has("vizdemo");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: demoMode });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 1); // OLED black, like the car stage
@@ -69,6 +89,10 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
 
   const feed = createSensorFeed();
   const statusEl = document.getElementById("viz-status")!;
+  if (demoMode) {
+    const t0 = performance.now();
+    feed.read = () => demoSnapshot((performance.now() - t0) / 1000);
+  }
   const stats: VizStats = {
     maxAbsY: 0, leftMeanY: 0, rightMeanY: 0, travel: 0,
     wave: 0, pulse: 0, bankGx: 0, hot: 0, signal: "NO SIGNAL",
@@ -130,7 +154,7 @@ export function initTelemetryViz(canvas: HTMLCanvasElement): TelemetryViz {
     stats.bankGx = bankS;
     stats.hot = hotS;
     stats.signal = live ? "LIVE" : "NO SIGNAL";
-    statusEl.textContent = live ? "LIVE" : "NO SIGNAL";
+    statusEl.textContent = live ? (demoMode ? "LIVE · DEMO" : "LIVE") : "NO SIGNAL";
 
     renderer.render(scene, camera);
   }
