@@ -11,6 +11,7 @@ import { initNavigatePage } from "./pages/navigate";
 import { initMediaPage } from "./pages/media";
 import { cancelFx } from "./ui/fx";
 import { initCarScene } from "./three/carScene";
+import { initTelemetryViz } from "./three/telemetryViz";
 
 // ---------- chrome ----------
 initNavbar();
@@ -26,6 +27,9 @@ const mediaPage = initMediaPage();
 // ---------- 3D stage ----------
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
 const scene = initCarScene(canvas);
+
+// ---------- home visualizer (replaces the car on HOME; self-subscribes) ----------
+initTelemetryViz(document.querySelector<HTMLCanvasElement>("#viz")!);
 
 // ---------- react to state ----------
 subscribe((s, prev) => {

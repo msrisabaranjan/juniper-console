@@ -41,6 +41,16 @@
   opacity: 0;
 }
 
+.viz-status {
+  position: absolute;
+  left: var(--sp-4);
+  bottom: var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.3em;
+  color: var(--text-faint);
+}
+
 /* ---------- vehicle ---------- */
 .veh-layout {
   display: grid;
